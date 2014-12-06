@@ -1,4 +1,4 @@
-#piguard_menu#
+#piguard-menu#
 
 ###Summary###
 
@@ -8,15 +8,15 @@ Main maintenance and config options in one simple menu.
 
 Download piguard_check.sh to /usr/local/bin
 
-sudo wget https://raw.github.com/JesperJurcenoks/piguard_menu/master/piguard_menu -O /usr/local/bin/piguard_menu
+sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
 
 Give piguard_check.sh execute rights 
 
-sudo chmod +x /usr/local/bin/piguard_menu
+sudo chmod +x /usr/local/bin/piguard-menu
 
 To run
 
-sudo piguard_menu
+sudo piguard-menu
 
 ###License###
 
