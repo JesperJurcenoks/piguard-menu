@@ -10,6 +10,7 @@ PiGuard is an open source project by Neighborhood Guard an Oakland, CA Based non
 piguard-menu is written by Jesper Jurcenoks
 Copyright 2014 Neighborhood Guard
 Released under GNU Affero 3.0
+
 www.neighborhoodguard.org
  \
 " 17 44 1
@@ -60,24 +61,20 @@ do_update_piguard_linux() {
 
 do_maintenance_menu() {
 
-    while true; do
-      SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-        "1 Update PiGuard Menu" "" \
-	"2 Update all linux and 3rd party libraries" "" \
-        3>&1 1>&2 2>&3)
-      RET=$?
-      if [ $RET -eq 1 ]; then
-        do_finish
-      elif [ $RET -eq 0 ]; then
-        case "$SELECTION" in
-          1\ *) do_update_piguard_menu ;;
-	  2\ *) do_update_piguard_linux ;;
-          *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-        esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
-      else
-        exit 1
-      fi
-    done
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+    "1 Update PiGuard Menu" "" \
+    "2 Update linux & libraries" "" \
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_update_piguard_menu ;;
+      2\ *) do_update_piguard_linux ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
 
 }
 
@@ -87,7 +84,7 @@ do_maintenance_menu() {
 #
 
 while true; do
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get Wifi IP Address " "" \
     "2 Ping camera" "" \
     "3 Maintenance menu" "" \
