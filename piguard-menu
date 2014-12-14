@@ -89,7 +89,7 @@ while true; do
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
       2\ *) do_ping_camera ;;
-      3\ *) do_maintainance_menu;;
+      3\ *) do_maintenance_menu;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
