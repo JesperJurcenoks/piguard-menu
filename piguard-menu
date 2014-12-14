@@ -44,12 +44,26 @@ do_update_piguard_menu() {
   
 }
 
+do_update_piguard_linux() {
+  echo "Updating Raspbian to latest version..."
+  echo "- first clean out any old updates that we don't need anymore"
+  sudo apt-get clean
+  echo "- second synchronize the database on raspberry pi with available software"
+  sudo apt-get update
+  echo "- third download and upgrade newer packages"
+  sudo apt-get upgrade --assume-yes
+  echo "- fourth release space used to upgrade the system"
+  sudo apt-get clean
+
+}
+
 
 do_maintenance_menu() {
 
     while true; do
       SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-        "1 Update PiGuard Menu " "" \
+        "1 Update PiGuard Menu" "" \
+	"2 Update all linux and 3rd party libraries" "" \
         3>&1 1>&2 2>&3)
       RET=$?
       if [ $RET -eq 1 ]; then
@@ -57,6 +71,7 @@ do_maintenance_menu() {
       elif [ $RET -eq 0 ]; then
         case "$SELECTION" in
           1\ *) do_update_piguard_menu ;;
+	  2\ *) do_update_piguard_linux ;;
           *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
         esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
       else
@@ -65,8 +80,6 @@ do_maintenance_menu() {
     done
 
 }
-
-
 
 
 #
