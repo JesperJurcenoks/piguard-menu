@@ -6,8 +6,12 @@ WT_MENU_HEIGHT=8
 
 do_about() {
   whiptail --msgbox "\
-PiGuard is an open source project by Neighborhood Guard an Oakland Based non-profit
-www.neighborhoodguard.org\npiguard-menu is written Jesper Jurcenoks\nCopyright 2014 Neighborhood Guard\nReleased under GNU Affero 3.0 \
+PiGuard is an open source project by Neighborhood Guard an Oakland, CA Based non-profit
+piguard-menu is written by Jesper Jurcenoks
+Copyright 2014 Neighborhood Guard
+Released under GNU Affero 3.0
+www.neighborhoodguard.org
+ \
 " 17 44 1
 }
 
@@ -73,7 +77,7 @@ while true; do
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get Wifi IP Address " "" \
     "2 Ping camera" "" \
-    "3 Maintenance menu"" \
+    "3 Maintenance menu" "" \
     "7 Restart (Reboot) PiGuard" "" \
     "8 Shutdown PiGuard safely" "" \
     "9 About PiGuard-Config" "" \
@@ -85,7 +89,7 @@ while true; do
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
       2\ *) do_ping_camera ;;
-      3\ *) do_maintain_menu;;
+      3\ *) do_maintainance_menu;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
