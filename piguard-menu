@@ -7,7 +7,7 @@ WT_MENU_HEIGHT=8
 do_about() {
   whiptail --msgbox "\
 PiGuard is an open source project by Neighborhood Guard an Oakland Based non-profit
-www.neighborhoodguard.org\
+www.neighborhoodguard.org\npiguard-menu is written Jesper Jurcenoks\nCopyright 2014 Neighborhood Guard\nReleased under GNU Affero 3.0 \
 " 17 44 1
 }
 
@@ -33,15 +33,49 @@ do_ping_camera() {
   whiptail --title "Ping Camera Result" --msgbox "$PINGRESULT" 17 48
 }
 
+do_update_piguard_menu() {
+
+  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
+  sudo chmod +x /usr/local/bin/piguard-menu
+  
+}
+
+
+do_maintenance_menu() {
+
+while true; do
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+    "1 Update PiGuard Menu " "" \
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_update_piguard_menu ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  else
+    exit 1
+  fi
+done
+
+
+
+}
+
+
+
 
 #
 #interactive use loop
 #
 
 while true; do
-  SELECTION=$(whiptail --title "PiGuard Configuration (piguard-config)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get Wifi IP Address " "" \
     "2 Ping camera" "" \
+    "3 Maintenance menu"" \
     "7 Restart (Reboot) PiGuard" "" \
     "8 Shutdown PiGuard safely" "" \
     "9 About PiGuard-Config" "" \
@@ -53,6 +87,7 @@ while true; do
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
       2\ *) do_ping_camera ;;
+      3\ *) do_maintain_menu;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
