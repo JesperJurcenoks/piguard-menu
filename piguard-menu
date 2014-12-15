@@ -4,6 +4,65 @@ WT_HEIGHT=18
 WT_WIDTH=44
 WT_MENU_HEIGHT=8
 
+
+set_config_var() {
+  lua - "$1" "$2" "$3" <<EOF > "$3.bak"
+local key=assert(arg[1])
+local value=assert(arg[2])
+local fn=assert(arg[3])
+local file=assert(io.open(fn))
+local made_change=false
+for line in file:lines() do
+  if line:match("^#?%s*"..key.."=.*$") then
+    line=key.."="..value
+    made_change=true
+  end
+  print(line)
+end
+if not made_change then
+  print(key.."="..value)
+end
+EOF
+mv "$3.bak" "$3"
+}
+
+
+do_set_locale() {
+  echo
+  whiptail --title "Set locale" --msgbox "\
+  On the next screen use <space key> to  select your locale (date and time format)
+  for US please:\n
+          Select [*] en_US.UFT-8 UTF-8\n
+  \n
+  (leave the en_GB.UFT-8 selected as well)
+  \
+  " $WT_HEIGHT $WT_WIDTH
+  echo "Raspberry Pi Locale configuration is loading..."
+  echo "use <space key> to select"
+  echo "for US Select: en_US.UTF-8 UTF-8"
+
+  sudo dpkg-reconfigure locales
+}
+
+do_set_timezone() {
+
+  whiptail --title "Set Time zone" --msgbox "\
+On the next screen select your timezone by first selecting your geographical area then selecting your timezone within tha$
+For California please select\n
+          US\n
+   then\n
+          Pacific-New
+\
+" $WT_HEIGHT $WT_WIDTH
+  echo "Raspberry Pi Time Zone configuration is loading..."
+  echo "For California select: US/Pacific-New"
+
+  sudo dpkg-reconfigure tzdata
+
+}
+
+
+
 do_about() {
   whiptail --msgbox "\
 PiGuard is an open source project by Neighborhood Guard an Oakland, CA Based non-profit
@@ -79,6 +138,27 @@ do_maintenance_menu() {
 }
 
 
+do_setup_menu() {
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+    "1 Set up 2-8" "" \
+    "2 Set Locale" "" \
+    "3 Set Time Zone" "" \
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_setup ;;
+      2\ *) do_set_locale ;;
+      3\ *) do_set_timezone ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
+
+}
+
+
 #
 #interactive use loop
 #
@@ -88,6 +168,7 @@ while true; do
     "1 Get Wifi IP Address " "" \
     "2 Ping camera" "" \
     "3 Maintenance menu" "" \
+    "4 Setup Menu" "" \
     "7 Restart (Reboot) PiGuard" "" \
     "8 Shutdown PiGuard safely" "" \
     "9 About PiGuard-Config" "" \
@@ -100,6 +181,7 @@ while true; do
       1\ *) do_get_wifi_ip ;;
       2\ *) do_ping_camera ;;
       3\ *) do_maintenance_menu;;
+      4\ *) do_setup_menu;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
