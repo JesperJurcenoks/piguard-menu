@@ -62,6 +62,32 @@ For California please select\n
 }
 
 
+do_set_hostname_gpu_mem_ssh() {
+  echo "setting hostname to 'piguard' "
+  echo
+  sudo echo "piguard" > /etc/hostname
+  sudo sed -i "s/127.0.1.1.*raspberrypi/127.0.1.1\tpiguard/g" /etc/hosts
+  echo
+  echo "done setting hostname"
+  echo
+  echo "setting Graphics memory (GPU) to 16Kb..."
+  sudo set_config_var gpu_mem "16" /boot/config.txt
+  echo "done setting gpu memory"
+  echo
+  echo "enabling SSH..."
+  sudo update-rc.d ssh enable
+  sudo invoke-rc.d ssh start
+  echo "SSH Enabled"
+}
+
+do_setup() {
+  do_set_locale
+  do_set_timezone
+  do_set_hostname_gpu_mem_ssh
+  do_update_piguard_linux
+}
+
+
 
 do_about() {
   whiptail --msgbox "\
@@ -101,7 +127,7 @@ do_update_piguard_menu() {
 
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
   sudo chmod +x /usr/local/bin/piguard-menu
-  
+
 }
 
 do_update_piguard_linux() {
@@ -137,12 +163,13 @@ do_maintenance_menu() {
 
 }
 
-
 do_setup_menu() {
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Set up 2-8" "" \
     "2 Set Locale" "" \
     "3 Set Time Zone" "" \
+    "4 Set hostname, GPU Mem, enable SSH" "" \
+    "5 Update linux & libraries" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -152,6 +179,8 @@ do_setup_menu() {
       1\ *) do_setup ;;
       2\ *) do_set_locale ;;
       3\ *) do_set_timezone ;;
+      4\ *) do_set_hostname_gpu_mem_ssh ;;
+      5\ *) do_update_piguard_linux ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
