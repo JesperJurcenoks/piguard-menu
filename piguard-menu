@@ -192,6 +192,26 @@ do_setup_wifi() {
   if_bounce wlan0
 }
 
+do_install_ftp() {
+
+  sudo apt-get update
+
+  sudo apt-get install vsftpd --assume-yes
+
+  sudo sed -i "s/anonymous_enable=YES/anonymous_enable=NO/g" /etc/vsftpd.conf
+  sudo sed -i "s/#local_enable=YES/local_enable=YES/g" /etc/vsftpd.conf
+  sudo sed -i "s/#write_enable=YES/write_enable=YES/g" /etc/vsftpd.conf
+  if grep -Fxq "force_dot_files=YES" /etc/vsftpd.conf 
+  then
+    echo "force_dot_files=YES already in /etc/vsftpd.conf"
+  else
+    sudo sh -c "echo \"force_dot_files=YES\" >> /etc/vsftpd.conf"
+  fi
+
+  sudo service vsftpd restart
+}
+
+
 do_setup() {
   do_set_locale
   do_set_timezone
@@ -306,6 +326,7 @@ do_setup_menu() {
     "5 Update linux & libraries" "" \
     "6 Set Cable to Cam and wifi to upload" "" \
     "7 Change Wifi name and password" "" \
+    "8 Install and start ftp-server" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -319,6 +340,7 @@ do_setup_menu() {
       5\ *) do_update_piguard_linux ;;
       6\ *) do_setup_wifi ;;
       7\ *) do_set_ssid_password ;;
+      8\ *) do_install_ftp ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
