@@ -27,7 +27,7 @@ mv "$3.bak" "$3"
 }
 
 
-do_set_locale() {
+do_set_locale(){
   echo
   whiptail --title "Set locale" --msgbox "\
   On the next screen use <space key> to  select your locale (date and time format)
@@ -80,6 +80,118 @@ do_set_hostname_gpu_mem_ssh() {
   echo "SSH Enabled"
 }
 
+do_check_ralink() {
+
+  if lsusb | grep -q "RT5370" ; then
+    whiptail --title "Ralink RT5370 check" --msgbox "All good!\nRecommended Wifi Adaptor Ralink RT5770 found!" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT
+  else
+    whiptail --title "Ralink RT5370 check" --msgbox "Warning!\nRecommended Wifi Adaptor Ralink RT5770 NOT found!" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT
+  fi
+}
+
+if_bounce() {
+    echo "Network connection down! Attempting reconnection."
+    sudo ifdown $1
+    sleep 5
+    sudo ifup --force $1
+}
+
+do_net_interfaces_eth0_internet(){
+
+  sudo sh -c "echo \"auto lo\" > /etc/network/interfaces"
+  sudo sh -c "echo \"\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface lo inet loopback\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface eth0 inet dhcp\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"allow-hotplug wlan0\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface wlan0 inet dhcp\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface default inet dhcp\"  >> /etc/network/interfaces"
+
+  if_bounce eth0
+}
+
+do_net_interfaces_eth0_camera(){
+
+  sudo sh -c "echo \"auto lo\" > /etc/network/interfaces"
+  sudo sh -c "echo \"\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface lo inet loopback\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface eth0 inet status\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"address 10.19.12.1\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"netmask 255.255.255.0\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"allow-hotplug wlan0\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface wlan0 inet dhcp\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface default inet dhcp\"  >> /etc/network/interfaces"
+
+  if_bounce eth0
+
+}
+
+do_wpa_supplicant_conf(){
+
+  sudo sh -c "echo \"ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\" > /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"update_config=1\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"network={\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"ssid=\\\"myNetwork\\\"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"psk=\\\"myPassword\\\"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"#protocol type can be: RSN (for WPA2) and WPA (for WPA1)\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"proto=RSN\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"#Key Management type can be : WPA-PSK (Pre-shared) or WPA-EAP (Enterprise)\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"key_mgmt=WPA-PSK\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"# Pairwise can be CCMP or TKIP (or WPA2 or WPA1)\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"pairwise=CCMP\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"# authorization option should be OPEN for both WPA1 and WPA2 (Less commonly used are SHARED and LEAP\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"auth_alg=OPEN\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+  sudo sh -c "echo \"}\" >> /etc/wpa_supplicant/wpa_supplicant.conf"
+
+}
+
+
+do_set_ssid_password() {
+
+  do_wpa_supplicant_conf
+
+  SSID=$(whiptail --title "Enter SSID" --inputbox "Enter name (SSID) for Wifi Network (case sensitive)" $WT_HEIGHT $WT_WIDTH "" 3>&1 1>&2 2>&3)
+  if [ $? = 0 ]; then
+    echo "User selected Ok and entered" $SSID
+    sudo sed -i "s/myNetwork/$SSID/g" /etc/wpa_supplicant/wpa_supplicant.conf
+  else
+    echo "User selected Cancel."
+  fi
+
+  WIFIPASSWORD=$(whiptail --title "Enter Wifi Pasword" --inputbox "Enter password for Wifi Network (case sensitive)" $WT_HEIGHT $WT_WIDTH "" 3>&1 1>&2 2>&3)
+  if [ $? = 0 ]; then
+    echo "User selected Ok and entered" $WIFIPASSWORD
+    sudo sed -i "s/myPassword/$WIFIPASSWORD/g" /etc/wpa_supplicant/wpa_supplicant.conf
+  else
+    echo "User selected Cancel."
+  fi
+}
+
+
+
+do_setup_wifi() {
+
+  if ifconfig | grep -q "wlan0" ; then
+    echo "All good! A working Wifi adaptor was found"
+  else
+    whiptail --title "Wlan0 check" --msgbox "Warning!\nno Wifi adaptor was found on wlan0" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT
+    return
+  fi
+
+  echo "Creating /etc/network/interfaces for piguard"
+  do_set_ssid_password
+  do_net_interfaces_eth0_camera
+  if_bounce wlan0
+}
+
 do_setup() {
   do_set_locale
   do_set_timezone
@@ -118,8 +230,7 @@ do_get_wifi_ip() {
 
 do_ping_camera() {
 
-  PINGRESULT=$(ping -c 4 -W 1 192.168.2.13)
-#  PINGRESULT=$(ping -c 4 -W 1 10.19.12.2)
+  PINGRESULT=$(ping -c 4 -W 1 10.19.12.2)
   whiptail --title "Ping Camera Result" --msgbox "$PINGRESULT" 17 48
 }
 
@@ -140,6 +251,29 @@ do_update_piguard_linux() {
   sudo apt-get upgrade --assume-yes
   echo "- fourth release space used to upgrade the system"
   sudo apt-get clean
+
+}
+
+do_debug_menu() {
+
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Debug Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+    "1 Ping camera" "" \
+    "2 Check Wifi Adapter" ""\
+    "3 Set Ethernet to Internet(dhcp)" ""\
+    "4 Set ethernet to Camera (10.19.12.1)" ""\
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_ping_camera ;;
+      2\ *) do_check_ralink ;;
+      3\ *) do_net_interfaces_eth0_internet ;;
+      4\ *) do_net_interfaces_eth0_camera ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
 
 }
 
@@ -165,11 +299,13 @@ do_maintenance_menu() {
 
 do_setup_menu() {
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-    "1 Set up 2-8" "" \
+    "1 Set up all items 2-8 below" "" \
     "2 Set Locale" "" \
     "3 Set Time Zone" "" \
     "4 Set hostname, GPU Mem, enable SSH" "" \
     "5 Update linux & libraries" "" \
+    "6 Set Cable to Cam and wifi to upload" "" \
+    "7 Change Wifi name and password" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -181,6 +317,8 @@ do_setup_menu() {
       3\ *) do_set_timezone ;;
       4\ *) do_set_hostname_gpu_mem_ssh ;;
       5\ *) do_update_piguard_linux ;;
+      6\ *) do_setup_wifi ;;
+      7\ *) do_set_ssid_password ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -195,7 +333,7 @@ do_setup_menu() {
 while true; do
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get Wifi IP Address " "" \
-    "2 Ping camera" "" \
+    "2 Debug Menu" ""\
     "3 Maintenance menu" "" \
     "4 Setup Menu" "" \
     "7 Restart (Reboot) PiGuard" "" \
@@ -208,7 +346,7 @@ while true; do
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
-      2\ *) do_ping_camera ;;
+      2\ *) do_debug_menu ;;
       3\ *) do_maintenance_menu;;
       4\ *) do_setup_menu;;
       7\ *) do_reboot ;;
