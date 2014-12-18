@@ -2,7 +2,7 @@
 
 WT_HEIGHT=18
 WT_WIDTH=44
-WT_MENU_HEIGHT=8
+WT_MENU_HEIGHT=12
 
 
 set_config_var() {
@@ -90,7 +90,7 @@ do_check_ralink() {
 }
 
 if_bounce() {
-    echo "Network connection down! Attempting reconnection."
+    echo "Bouncing $1"
     sudo ifdown $1
     sleep 5
     sudo ifup --force $1
@@ -116,7 +116,7 @@ do_net_interfaces_eth0_camera(){
   sudo sh -c "echo \"auto lo\" > /etc/network/interfaces"
   sudo sh -c "echo \"\" >> /etc/network/interfaces"
   sudo sh -c "echo \"iface lo inet loopback\" >> /etc/network/interfaces"
-  sudo sh -c "echo \"iface eth0 inet status\" >> /etc/network/interfaces"
+  sudo sh -c "echo \"iface eth0 inet static\" >> /etc/network/interfaces"
   sudo sh -c "echo \"address 10.19.12.1\" >> /etc/network/interfaces"
   sudo sh -c "echo \"netmask 255.255.255.0\" >> /etc/network/interfaces"
   sudo sh -c "echo \"\" >> /etc/network/interfaces"
@@ -211,14 +211,37 @@ do_install_ftp() {
   sudo service vsftpd restart
 }
 
+do_install_ftp_upload() {
 
-do_setup() {
-  do_set_locale
-  do_set_timezone
-  do_set_hostname_gpu_mem_ssh
-  do_update_piguard_linux
+  sudo apt-get update
+  sudo apt-get install python-pip --assume-yes
+  sudo apt-get install python-dev --assume-yes
+  sudo pip install pysftp
+  mkdir /home/pi/ftp_upload
+  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
+  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
+  sudo nano /home/pi/ftp_upload/localsettings.py
+
 }
 
+
+do_set_font_for_pitft() {
+  echo "setting font for PiTFT"
+  sudo sed -i 's/CHARMAP="[-A-Za-z0-9]*"/CHARMAP="UTF-8"/g' /etc/default/console-setup
+  sudo sed -i 's/CODESET="[-A-Za-z0-9]*"/CODESET="guess"/g' /etc/default/console-setup
+  sudo sed -i 's/FONTFACE="[-A-Za-z0-9]*"/FONTFACE="Terminus"/g' /etc/default/console-setup
+  sudo sed -i 's/FONTSIZE="[-A-Za-z0-9]*"/FONTSIZE="6x12"/g' /etc/default/console-setup
+  sudo /etc/init.d/console-setup restart
+}
+
+do_install_pitft() {
+  mkdir ~/pitft
+  cd ~/pitft
+  wget http://adafru.it/pitftsh -O ~/pitft/pitft.sh
+  chmod +x ~/pitft/pitft.sh 
+
+
+}
 
 
 do_about() {
@@ -319,28 +342,32 @@ do_maintenance_menu() {
 
 do_setup_menu() {
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-    "1 Set up all items 2-8 below" "" \
-    "2 Set Locale" "" \
-    "3 Set Time Zone" "" \
-    "4 Set hostname, GPU Mem, enable SSH" "" \
-    "5 Update linux & libraries" "" \
-    "6 Set Cable to Cam and wifi to upload" "" \
-    "7 Change Wifi name and password" "" \
-    "8 Install and start ftp-server" "" \
+    "1 Set Locale" "" \
+    "2 Set Time Zone" "" \
+    "3 Set hostname, GPU Mem, enable SSH" "" \
+    "4 Update linux & libraries" "" \
+    "5 Set Cable to Cam and wifi to upload" "" \
+    "6 Change Wifi name and password" "" \
+    "7 Install and start ftp-server" "" \
+    "8 install NG ftp_upload" "" \
+    "9 Set font for PiTFT mini display" "" \
+    "A Install PiTFT mini display drivers" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
     do_finish
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
-      1\ *) do_setup ;;
-      2\ *) do_set_locale ;;
-      3\ *) do_set_timezone ;;
-      4\ *) do_set_hostname_gpu_mem_ssh ;;
-      5\ *) do_update_piguard_linux ;;
-      6\ *) do_setup_wifi ;;
-      7\ *) do_set_ssid_password ;;
-      8\ *) do_install_ftp ;;
+      1\ *) do_set_locale ;;
+      2\ *) do_set_timezone ;;
+      3\ *) do_set_hostname_gpu_mem_ssh ;;
+      4\ *) do_update_piguard_linux ;;
+      5\ *) do_setup_wifi ;;
+      6\ *) do_set_ssid_password ;;
+      7\ *) do_install_ftp ;;
+      8\ *) do_install_ftp_upload ;;
+      9\ *) do_set_font_for_pitft ;;
+      A\ *) do_install_pitft ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
