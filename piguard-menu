@@ -78,6 +78,11 @@ do_set_hostname_gpu_mem_ssh() {
   sudo update-rc.d ssh enable
   sudo invoke-rc.d ssh start
   echo "SSH Enabled"
+  echo
+  echo "enable RCA if there/don't force HDMI if not plugged in"
+  sudo sed -i "s/^hdmi_force_hotplug=1/#hdmi_force_hotplug=1/g" /boot/config.txt
+  echo "done disabling Force HDMI"
+
 }
 
 do_check_ralink() {
@@ -390,7 +395,7 @@ do_setup_menu() {
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Set Locale" "" \
     "2 Set Time Zone" "" \
-    "3 Set hostname, GPU Mem, enable SSH" "" \
+    "3 Set hostname, GPU Mem, enable SSH, RCA" "" \
     "4 Update linux & libraries" "" \
     "5 Set Cable to Cam and wifi to upload" "" \
     "6 Change Wifi name and password" "" \
