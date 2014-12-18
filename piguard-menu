@@ -65,7 +65,7 @@ For California please select\n
 do_set_hostname_gpu_mem_ssh() {
   echo "setting hostname to 'piguard' "
   echo
-  sudo echo "piguard" > /etc/hostname
+  sudo sh -c 'echo "piguard" > /etc/hostname'
   sudo sed -i "s/127.0.1.1.*raspberrypi/127.0.1.1\tpiguard/g" /etc/hosts
   echo
   echo "done setting hostname"
@@ -238,9 +238,11 @@ do_install_pitft() {
   mkdir ~/pitft
   cd ~/pitft
   wget http://adafru.it/pitftsh -O ~/pitft/pitft.sh
-  chmod +x ~/pitft/pitft.sh 
-
-
+  chmod +x ~/pitft/pitft.sh
+  sudo sed -i 's/if ask "Would you like the console to appear on the PiTFT display?"/if 1==1/g' ~/pitft/pitft.sh #always set console to pitft - don't ask
+  sudo sed -i 's/if ask "Would you like GPIO #23 to act as a on\/off button?"/if 1==0/g' ~/pitft/pitft.sh #never install the power down button
+  sudo ./pitft.sh -t 28c -r 
+  sudo reboot
 }
 
 
