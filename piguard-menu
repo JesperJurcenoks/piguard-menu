@@ -224,6 +224,11 @@ do_install_ftp_upload() {
 
 }
 
+do_menu_on_login() {
+  echo "setting piguard-menu to run on start-up"
+  echo "piguard-menu" > ~/.bash_profile
+}
+
 
 do_set_font_for_pitft() {
   echo "setting font for PiTFT"
@@ -371,8 +376,9 @@ do_setup_menu() {
     "6 Change Wifi name and password" "" \
     "7 Install and start ftp-server" "" \
     "8 install NG ftp_upload" "" \
-    "9 Set font for PiTFT mini display" "" \
-    "A Install PiTFT mini display drivers" ""\
+    "9 Set menu to start on login" "" \
+    "A Set font for PiTFT mini display" "" \
+    "B Install PiTFT mini display drivers" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -387,8 +393,9 @@ do_setup_menu() {
       6\ *) do_set_ssid_password ;;
       7\ *) do_install_ftp ;;
       8\ *) do_install_ftp_upload ;;
-      9\ *) do_set_font_for_pitft ;;
-      A\ *) do_install_pitft ;;
+      9\ *) do_menu_on_login ;;
+      A\ *) do_set_font_for_pitft ;;
+      B\ *) do_install_pitft ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
