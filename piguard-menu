@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 WT_HEIGHT=18
 WT_WIDTH=44
@@ -156,6 +156,9 @@ do_wpa_supplicant_conf(){
 
 do_set_ssid_password() {
 
+  WIFINETWORKS=$(sudo iwlist wlan0 scan | grep "ESSID" | sed -e 's/.*ESSID:"\([^"]\+\)".*/  \1/' | grep -v ESSID)
+  whiptail --title "Available WI-FI Networks" --msgbox "$WIFINETWORKS" 17 48
+
   do_wpa_supplicant_conf
 
   SSID=$(whiptail --title "Enter SSID" --inputbox "Enter name (SSID) for Wifi Network (case sensitive)" $WT_HEIGHT $WT_WIDTH "" 3>&1 1>&2 2>&3)
@@ -239,15 +242,28 @@ do_set_font_for_pitft() {
   sudo /etc/init.d/console-setup restart
 }
 
+do_console_to_pitft() {
+  echo "setting console to output to pitft"
+  sudo sed -i 's/rootwait.*/rootwait fbcon=map:10 fbcon=font:VGA8x8/g' "/boot/cmdline.txt"
+  sudo reboot
+}
+
+do_console_to_hdmi() {
+  echo "setting console to output to pitft"
+  sudo sed -i 's/rootwait.*/rootwait/g' "/boot/cmdline.txt"
+  sudo reboot
+}
+
 do_install_pitft() {
   mkdir ~/pitft
   cd ~/pitft
   wget http://adafru.it/pitftsh -O ~/pitft/pitft.sh
   chmod +x ~/pitft/pitft.sh
-  sudo sed -i 's/if ask "Would you like the console to appear on the PiTFT display?"/if 1==1/g' ~/pitft/pitft.sh #always set console to pitft - don't ask
+  sudo sed -i 's/if ask "Would you like the console to appear on the PiTFT display?"/if 1==0/g' ~/pitft/pitft.sh # do not do and do not ask
   sudo sed -i 's/if ask "Would you like GPIO #23 to act as a on\/off button?"/if 1==0/g' ~/pitft/pitft.sh #never install the power down button
-  sudo ./pitft.sh -t 28c -r 
-  sudo reboot
+  sudo ./pitft.sh -t 28c -r
+  do_console_to_pitft
+  exec "sudo reboot"
 }
 
 
@@ -264,12 +280,12 @@ www.neighborhoodguard.org
 }
 
 do_shutdown() {
-  sudo shutdown -h now
+  exec "sudo shutdown -h now"
 
 }
 
 do_reboot() {
-  sudo reboot
+  exec "sudo reboot"
 }
 
 do_get_wifi_ip() {
@@ -328,6 +344,8 @@ do_debug_menu() {
     "4 Set Ethernet to Internet(dhcp)" ""\
     "5 Set ethernet to Camera (10.19.12.1)" ""\
     "6 Count Images pending upload" ""\
+    "7 Use Pitft mini display and reboot" ""\
+    "8 Use HDMI and reboot" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -340,6 +358,8 @@ do_debug_menu() {
       4\ *) do_net_interfaces_eth0_internet ;;
       5\ *) do_net_interfaces_eth0_camera ;;
       6\ *) do_count_incoming ;;
+      7\ *) do_console_to_pitft ;;
+      8\ *) do_console_to_hdmi ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
