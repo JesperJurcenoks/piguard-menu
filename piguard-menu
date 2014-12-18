@@ -284,6 +284,13 @@ do_ping_google() {
   whiptail --title "Ping Google Result" --msgbox "$PINGRESULT" 17 48
 }
 
+do_count_incoming() {
+
+ IMAGECOUNT=$(find ~/images.incoming/. | wc -l)
+ DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
+ whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
+
+}
 
 do_update_piguard_menu() {
 
@@ -313,6 +320,7 @@ do_debug_menu() {
     "3 Check Wifi Adapter" ""\
     "4 Set Ethernet to Internet(dhcp)" ""\
     "5 Set ethernet to Camera (10.19.12.1)" ""\
+    "6 Count Images pending upload" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -324,6 +332,7 @@ do_debug_menu() {
       3\ *) do_check_ralink ;;
       4\ *) do_net_interfaces_eth0_internet ;;
       5\ *) do_net_interfaces_eth0_camera ;;
+      6\ *) do_count_incoming ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
