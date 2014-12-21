@@ -268,9 +268,23 @@ do_install_pitft() {
   sudo sed -i 's/if ask "Would you like GPIO #23 to act as a on\/off button?"/if 1==0/g' ~/pitft/pitft.sh #never install the power down button
   sudo ./pitft.sh -t 28c -r
   do_console_to_pitft
-  exec "sudo reboot"
+  sudo reboot
 }
 
+
+do_upside_down() {
+
+  if grep -Fq "rotate=90" /etc/modprobe.d/adafruit.conf
+  then
+    echo "current roation=90 setting to 270"
+    sudo sed -i "s/rotate=[0-9]* /rotate=270 /g" /etc/modprobe.d/adafruit.conf
+    sudo reboot
+  else
+    echo "current rotation-270 setting to 90"
+    sudo sed -i "s/rotate=[0-9]* /rotate=90 /g" /etc/modprobe.d/adafruit.conf
+    sudo reboot
+  fi
+}
 
 do_about() {
   whiptail --msgbox "\
@@ -285,12 +299,12 @@ www.neighborhoodguard.org
 }
 
 do_shutdown() {
-  exec "sudo shutdown -h now"
+  sudo shutdown -h now
 
 }
 
 do_reboot() {
-  exec "sudo reboot"
+  sudo reboot
 }
 
 do_get_wifi_ip() {
@@ -325,6 +339,7 @@ do_update_piguard_menu() {
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
   sudo chmod +x /usr/local/bin/piguard-menu
 
+  exec /usr/local/bin/piguard-menu
 }
 
 do_update_piguard_linux() {
@@ -404,6 +419,7 @@ do_setup_menu() {
     "9 Set menu to start on login" "" \
     "A Set font for PiTFT mini display" "" \
     "B Install PiTFT mini display drivers" ""\
+    "C Upside down Mini display and reboot" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -421,6 +437,7 @@ do_setup_menu() {
       9\ *) do_menu_on_login ;;
       A\ *) do_set_font_for_pitft ;;
       B\ *) do_install_pitft ;;
+      C\ *) do_upside_down ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
