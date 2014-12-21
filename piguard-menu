@@ -537,6 +537,10 @@ while true; do
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   else
+    echo 
+    echo "***  To return to menu type 'piguard-menu'  ***"
+    echo
     exit 1
   fi
 done
+    echo "***  To return to menu type 'piguard-menu'  ***"
