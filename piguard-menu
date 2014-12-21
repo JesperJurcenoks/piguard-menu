@@ -224,6 +224,10 @@ do_download_ftp_upload_py() {
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
 }
 
+do_setup_ftp_upload() {
+  sudo nano /home/pi/ftp_upload/localsettings.py
+}
+
 do_install_ftp_upload() {
 
   sudo apt-get update
@@ -233,8 +237,7 @@ do_install_ftp_upload() {
   mkdir /home/pi/ftp_upload
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
   do_download_ftp_upload_py
-  sudo nano /home/pi/ftp_upload/localsettings.py
-
+  do_setup_ftp_upload
 }
 
 do_menu_on_login() {
@@ -295,6 +298,12 @@ do_download_piguard_check() {
   echo "here will download come once I decide where to put the file."
 }
 
+do_free_disk() {
+  FREEDISK=$(df -h /)
+  whiptail --title "Free Disk Space" --msgbox "$FREEDISK" 12 44
+}
+
+
 do_about() {
   whiptail --msgbox "\
 PiGuard is an open source project by Neighborhood Guard an Oakland, CA Based non-profit
@@ -325,15 +334,31 @@ do_get_wifi_ip() {
 
 do_ping_camera() {
 
-  PINGRESULT=$(ping -c 4 -W 1 10.19.12.2)
+  PINGRESULT=$(ping -c 4 -W 1 10.19.12.2 2>&1)
   whiptail --title "Ping Camera Result" --msgbox "$PINGRESULT" 17 48
 }
 
 do_ping_google() {
 
-  PINGRESULT=$(ping -c 4 -W 1 www.google.com)
+  PINGRESULT=$(ping -c 4 -W 1 www.google.com 2>&1)
   whiptail --title "Ping Google Result" --msgbox "$PINGRESULT" 17 48
 }
+
+do_ping_gateway() {
+
+  GATEWAY_ADDR=$(route -n | grep "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
+  PINGRESULT=$(ping -c 4 -W 1 $GATEWAY_ADDR 2>&1)
+  whiptail --title "Ping Gateway Result" --msgbox "$PINGRESULT" 17 48
+}
+
+do_ping_dreamhost() {
+
+  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._]*"' | grep -o '[a-z0-9AZ._]*')
+  PINGRESULT=$(ping -c 4 -W 1 $DREAMHOST_ADDR 2>&1)
+  whiptail --title "Ping Dreamhost Result" --msgbox "$PINGRESULT" 17 48
+}
+
+
 
 do_count_incoming() {
 
@@ -364,17 +389,16 @@ do_update_piguard_linux() {
 
 }
 
-do_debug_menu() {
+do_diag_menu() {
 
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Debug Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "diagsnostics Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Check Camera connection (Ping it)" ""\
     "2 Check Internet connection (Ping Google)" ""\
-    "3 Check Wifi Adapter" ""\
-    "4 Set Ethernet to Internet(dhcp)" ""\
-    "5 Set ethernet to Camera (10.19.12.1)" ""\
+    "3 Check Wifi connection (Ping gateway)" ""\
+    "4 Check Dreamhost connection (Ping server)" ""\
+    "5 Check Wifi Adapter" ""\
     "6 Count Images pending upload" ""\
-    "7 Use Pitft mini display and reboot" ""\
-    "8 Use HDMI and reboot" ""\
+    "7 Show free disk space" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -383,12 +407,34 @@ do_debug_menu() {
     case "$SELECTION" in
       1\ *) do_ping_camera ;;
       2\ *) do_ping_google ;;
-      3\ *) do_check_ralink ;;
-      4\ *) do_net_interfaces_eth0_internet ;;
-      5\ *) do_net_interfaces_eth0_camera ;;
+      3\ *) do_ping_gateway ;;
+      4\ *) do_ping_dreamhost ;;
+      5\ *) do_check_ralink ;;
       6\ *) do_count_incoming ;;
-      7\ *) do_console_to_pitft ;;
-      8\ *) do_console_to_hdmi ;;
+      7\ *) do_free_disk ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
+
+}
+
+do_advanced_settings() {
+
+  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Advanced Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+    "1 Set Ethernet to Internet(dhcp)" ""\
+    "2 Set ethernet to Camera (10.19.12.1)" ""\
+    "3 Use Pitft mini display and reboot" ""\
+    "4 Use HDMI and reboot" ""\
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_net_interfaces_eth0_internet ;;
+      2\ *) do_net_interfaces_eth0_camera ;;
+      3\ *) do_console_to_pitft ;;
+      4\ *) do_console_to_hdmi ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -429,10 +475,11 @@ do_setup_menu() {
     "6 Change Wifi name and password" "" \
     "7 Install and start ftp-server" "" \
     "8 install NG ftp_upload" "" \
-    "9 Set menu to start on login" "" \
-    "A Set font for PiTFT mini display" "" \
-    "B Install PiTFT mini display drivers" ""\
-    "C Upside down Mini display and reboot" ""\
+    "9 Edit ftp_upload settings" "" \
+    "A Set menu to start on login" "" \
+    "B Set font for PiTFT mini display" "" \
+    "C Install PiTFT mini display drivers" ""\
+    "D Upside down Mini display and reboot" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -447,10 +494,11 @@ do_setup_menu() {
       6\ *) do_set_ssid_password ;;
       7\ *) do_install_ftp ;;
       8\ *) do_install_ftp_upload ;;
-      9\ *) do_menu_on_login ;;
-      A\ *) do_set_font_for_pitft ;;
-      B\ *) do_install_pitft ;;
-      C\ *) do_upside_down ;;
+      9\ *) do_setup_ftp_upload ;;
+      A\ *) do_menu_on_login ;;
+      B\ *) do_set_font_for_pitft ;;
+      C\ *) do_install_pitft ;;
+      D\ *) do_upside_down ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -465,9 +513,10 @@ do_setup_menu() {
 while true; do
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get IP Addresses of device " "" \
-    "2 Debug Menu" ""\
+    "2 Diagnostics Menu" ""\
     "3 Maintenance menu" "" \
     "4 Setup Menu" "" \
+    "5 Advanced settings" "" \
     "7 Restart (Reboot) PiGuard" "" \
     "8 Shutdown PiGuard safely" "" \
     "9 About PiGuard-Config" "" \
@@ -478,9 +527,10 @@ while true; do
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
-      2\ *) do_debug_menu ;;
+      2\ *) do_diag_menu ;;
       3\ *) do_maintenance_menu;;
       4\ *) do_setup_menu;;
+      5\ *) d0_advanced_settings ;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
