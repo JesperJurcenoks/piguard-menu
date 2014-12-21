@@ -1,7 +1,7 @@
 #!/bin/bash
 
 WT_HEIGHT=18
-WT_WIDTH=44
+WT_WIDTH=46
 WT_MENU_HEIGHT=12
 
 
@@ -219,6 +219,11 @@ do_install_ftp() {
   sudo service vsftpd restart
 }
 
+
+do_download_ftp_upload_py() {
+  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
+}
+
 do_install_ftp_upload() {
 
   sudo apt-get update
@@ -227,7 +232,7 @@ do_install_ftp_upload() {
   sudo pip install pysftp
   mkdir /home/pi/ftp_upload
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
-  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
+  do_download_ftp_upload_py
   sudo nano /home/pi/ftp_upload/localsettings.py
 
 }
@@ -284,6 +289,10 @@ do_upside_down() {
     sudo sed -i "s/rotate=[0-9]* /rotate=90 /g" /etc/modprobe.d/adafruit.conf
     sudo reboot
   fi
+}
+
+do_download_piguard_check() {
+  echo "here will download come once I decide where to put the file."
 }
 
 do_about() {
@@ -392,6 +401,8 @@ do_maintenance_menu() {
   SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Update PiGuard Menu" "" \
     "2 Update linux & libraries" "" \
+    "3 Update ftp_upload.py" "" \
+    "4 update piguard_check" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -400,6 +411,8 @@ do_maintenance_menu() {
     case "$SELECTION" in
       1\ *) do_update_piguard_menu ;;
       2\ *) do_update_piguard_linux ;;
+      3\ *) do_download_ftp_upload_py ;;
+      4\ *) do_download_piguard_check ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
