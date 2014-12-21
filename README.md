@@ -16,7 +16,7 @@ sudo chmod +x /usr/local/bin/piguard-menu
 
 To run
 
-sudo piguard-menu
+piguard-menu
 
 ###License###
 

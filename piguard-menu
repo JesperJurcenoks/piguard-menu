@@ -1,5 +1,27 @@
 #!/bin/bash
 
+##################################################################
+# Title:     piguard_menu
+# Copyright (C) 2014 Neighborhood Guard, Inc. All rights reserved
+# Author:    Jesper Jurcenoks, Neighborhood Guard
+# Version:   1.1
+#
+# piguard_menu is free software: you can redistribute it and/or
+# modify it under the terms of the GNU Affero General Public
+# License as published by # the Free Software Foundation, either
+# version 3 of the License, or (at your option) any later version.
+#
+# piguard_check is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General
+# Public License along with piguard-menu.
+# If not, see <http://www.gnu.org/licenses/>.
+#
+##################################################################
+
 WT_HEIGHT=18
 WT_WIDTH=46
 WT_MENU_HEIGHT=12
@@ -295,8 +317,15 @@ do_upside_down() {
 }
 
 do_download_piguard_check() {
-  echo "here will download come once I decide where to put the file."
+  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard_check/master/piguard_check.sh -O ~/ftp_upload/piguard_check.sh
+  sudo chmod +x ~/ftp_upload/piguard_check.sh
 }
+
+do_install_piguard_check() {
+  do_download_piguard_check
+  
+}
+
 
 do_free_disk() {
   FREEDISK=$(df -h /)
@@ -479,7 +508,8 @@ do_setup_menu() {
     "A Set menu to start on login" "" \
     "B Set font for PiTFT mini display" "" \
     "C Install PiTFT mini display drivers" ""\
-    "D Upside down Mini display and reboot" ""\
+    "D Optional Flip Mini display & reboot" ""\
+    "E Install piguard_check" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -499,6 +529,7 @@ do_setup_menu() {
       B\ *) do_set_font_for_pitft ;;
       C\ *) do_install_pitft ;;
       D\ *) do_upside_down ;;
+      E\ *) do_install_piguard_check ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
