@@ -87,8 +87,12 @@ For California please select\n
 do_set_hostname_gpu_mem_ssh() {
   echo "setting hostname to 'piguard' "
   echo
-  sudo sh -c 'echo "piguard" > /etc/hostname'
-  sudo sed -i "s/127.0.1.1.*raspberrypi/127.0.1.1\tpiguard/g" /etc/hosts
+  HOSTNAME=$(whiptail --title "Set hostname" --inputbox 'Enter the new hostname' $WT_HEIGHT $WT_WIDTH "" 3>&1 1>&2 2>&3)
+  exitstatus=$?
+  if [ $exitstatus = 0 ]; then
+    sudo sh -c 'echo "$HOSTNAME" > /etc/hostname'
+    sudo sed -i "s/127.0.1.1.*$/127.0.1.1\t$HOSTNAME/g" /etc/hosts
+  fi
   echo
   echo "done setting hostname"
   echo
@@ -541,8 +545,10 @@ do_setup_menu() {
 #interactive use loop
 #
 
+HOSTNAME="`cat /etc/hostname`"
+
 while true; do
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu on $HOSTNAME" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Get IP Addresses of device " "" \
     "2 Diagnostics Menu" ""\
     "3 Maintenance menu" "" \
@@ -561,7 +567,7 @@ while true; do
       2\ *) do_diag_menu ;;
       3\ *) do_maintenance_menu;;
       4\ *) do_setup_menu;;
-      5\ *) d0_advanced_settings ;;
+      5\ *) do_advanced_settings ;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
