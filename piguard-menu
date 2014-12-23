@@ -85,12 +85,12 @@ For California please select\n
 
 
 do_set_hostname_gpu_mem_ssh() {
-  echo "setting hostname to 'piguard' "
+  echo "setting hostname"
   echo
-  HOSTNAME=$(whiptail --title "Set hostname" --inputbox 'Enter the new hostname' $WT_HEIGHT $WT_WIDTH "" 3>&1 1>&2 2>&3)
+  HOSTNAME=$(whiptail --title "Set hostname" --inputbox 'Enter the new hostname' $WT_HEIGHT $WT_WIDTH "$HOSTNAME" 3>&1 1>&2 2>&3)
   exitstatus=$?
   if [ $exitstatus = 0 ]; then
-    sudo sh -c 'echo "$HOSTNAME" > /etc/hostname'
+    sudo sed -i "s/^.*$/$HOSTNAME/g" /etc/hostname
     sudo sed -i "s/127.0.1.1.*$/127.0.1.1\t$HOSTNAME/g" /etc/hosts
   fi
   echo
@@ -325,9 +325,39 @@ do_download_piguard_check() {
   sudo chmod +x ~/ftp_upload/piguard_check.sh
 }
 
+do_set_cronlog() {
+  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh >>  ~/ftp_upload/cron.log 2>&1
+*/1 * * * * ~/ftp_upload/piguard_check.sh >>  ~/ftp_upload/cron.log 2>&1" | crontab
+
+}
+
+do_set_piguard_check_crontab() {
+  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh
+*/5 * * * * ~/ftp_upload/piguard_check.sh" | crontab
+}
+
+do_no_crontab() {
+  crontab -r
+}
+
+do_display_cronlog() {
+  clear
+  tail -n 30 ~/ftp_upload/cron.log
+  echo "press any key to continue"
+  read -s -n 1
+}
+
+do_display_ftp_upload.log() {
+  clear
+  tail -n 30 ~/ftp_upload/ftp_upload.log
+  echo "press any key to continue"
+  read -s -n 1
+}
+
+
 do_install_piguard_check() {
   do_download_piguard_check
-  
+  do_set_piguard_check_crontab
 }
 
 
@@ -424,7 +454,7 @@ do_update_piguard_linux() {
 
 do_diag_menu() {
 
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "diagsnostics Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu Diagnostics on $HOSTNAME" --menu "diagsnostics Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Check Camera connection (Ping it)" ""\
     "2 Check Internet connection (Ping Google)" ""\
     "3 Check Wifi connection (Ping gateway)" ""\
@@ -432,6 +462,10 @@ do_diag_menu() {
     "5 Check Wifi Adapter" ""\
     "6 Count Images pending upload" ""\
     "7 Show free disk space" "" \
+    "8 Set background job (cron) 1 min logging" "" \
+    "9 Display background job (cron) log" "" \
+    "A Start background jobs (5 min no logging)" ""\
+    "B Stop all background jobs (cron)" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -445,6 +479,10 @@ do_diag_menu() {
       5\ *) do_check_ralink ;;
       6\ *) do_count_incoming ;;
       7\ *) do_free_disk ;;
+      8\ *) do_set_cronlog ;;
+      9\ *) do_display_cronlog ;;
+      A\ *) do_set_piguard_check_crontab ;;
+      B\ *) do_no_crontab ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -453,7 +491,7 @@ do_diag_menu() {
 
 do_advanced_settings() {
 
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Advanced Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu Adavanced on $HOSTNAME" --menu "Advanced Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Set Ethernet to Internet(dhcp)" ""\
     "2 Set ethernet to Camera (10.19.12.1)" ""\
     "3 Use Pitft mini display and reboot" ""\
@@ -477,7 +515,7 @@ do_advanced_settings() {
 
 do_maintenance_menu() {
 
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu Maintenance on $HOSTNAME" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Update PiGuard Menu" "" \
     "2 Update linux & libraries" "" \
     "3 Update ftp_upload.py" "" \
@@ -499,7 +537,7 @@ do_maintenance_menu() {
 }
 
 do_setup_menu() {
-  SELECTION=$(whiptail --title "PiGuard Menu (piguard-menu)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu Setup on $HOSTNAME" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
     "1 Set Locale" "" \
     "2 Set Time Zone" "" \
     "3 Set hostname, GPU Mem, enable SSH, RCA" "" \
@@ -549,11 +587,12 @@ HOSTNAME="`cat /etc/hostname`"
 
 while true; do
   SELECTION=$(whiptail --title "piguard-menu on $HOSTNAME" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-    "1 Get IP Addresses of device " "" \
-    "2 Diagnostics Menu" ""\
-    "3 Maintenance menu" "" \
-    "4 Setup Menu" "" \
-    "5 Advanced settings" "" \
+    "1 Get IP Addresses of device" "" \
+    "2 Display ftp_uppload.log" "" \
+    "3 Diagnostics Menu" ""\
+    "4 Maintenance menu" "" \
+    "5 Setup Menu" "" \
+    "6 Advanced settings" "" \
     "7 Restart (Reboot) PiGuard" "" \
     "8 Shutdown PiGuard safely" "" \
     "9 About PiGuard-Config" "" \
@@ -564,10 +603,11 @@ while true; do
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
       1\ *) do_get_wifi_ip ;;
-      2\ *) do_diag_menu ;;
-      3\ *) do_maintenance_menu;;
-      4\ *) do_setup_menu;;
-      5\ *) do_advanced_settings ;;
+      2\ *) do_display_ftp_upload.log ;;
+      3\ *) do_diag_menu ;;
+      4\ *) do_maintenance_menu;;
+      5\ *) do_setup_menu;;
+      6\ *) do_advanced_settings ;;
       7\ *) do_reboot ;;
       8\ *) do_shutdown;;
       9\ *) do_about ;;
