@@ -251,6 +251,8 @@ do_download_ftp_upload_py() {
 }
 
 do_setup_ftp_upload() {
+  mkdir /home/pi/images.incoming
+  mkdir /home/pi/images.uploaded
   sudo nano /home/pi/ftp_upload/localsettings.py
 }
 
@@ -361,6 +363,18 @@ do_install_piguard_check() {
 }
 
 
+do_install_dhcp() {
+  sudo apt-get install isc-dhcp-server
+  sudo sed -i 's/option domain-name "[a-zA-Z0-1_\.-]*";/option domain-name "piguard.localnet";/g' /etc/dhcp/dhcpd.conf
+  sudo sed -i 's/option domain-name-servers [a-zA-Z0-9_\., -]*;/option domain-name 8.8.8.8, 8.8.4.4;/g' /etc/dhcp/dhcpd.conf
+  if grep -q "subnet 10.19.12.0" /etc/dhcp/dhcpd.conf; then
+    echo "subnet already defined in dhcp"
+  else
+    sudo sed -i "s/8.8.4.4;/8.8.4.4;\n\n# This is the very basic subnet between the PiGuard and the Axis Camera\nsubnet 10.19.12.0 netmask 255.255.255.0 {\n# we are making the range only 1 ip-address to be sure that the Camera gets\n# the same address every time.\nrange 10.19.12.2 10.19.12.2;\noption routers 10.19.12.1;\n}/g"  /etc/dhcp/dhcpd.conf
+  fi
+
+}
+
 do_free_disk() {
   FREEDISK=$(df -h /)
   whiptail --title "Free Disk Space" --msgbox "$FREEDISK" 12 44
@@ -420,7 +434,6 @@ do_ping_dreamhost() {
   PINGRESULT=$(ping -c 4 -W 1 $DREAMHOST_ADDR 2>&1)
   whiptail --title "Ping Dreamhost Result" --msgbox "$PINGRESULT" 17 48
 }
-
 
 
 do_count_incoming() {
@@ -550,8 +563,9 @@ do_setup_menu() {
     "A Set menu to start on login" "" \
     "B Set font for PiTFT mini display" "" \
     "C Install PiTFT mini display drivers" ""\
-    "D Optional Flip Mini display & reboot" ""\
+    "D Optional:  Flip Mini display & reboot" ""\
     "E Install piguard_check" ""\
+    "F install DHCP Server" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -572,6 +586,7 @@ do_setup_menu() {
       C\ *) do_install_pitft ;;
       D\ *) do_upside_down ;;
       E\ *) do_install_piguard_check ;;
+      F\ *) do_install_dhcp ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
