@@ -372,7 +372,39 @@ do_install_dhcp() {
   else
     sudo sed -i "s/8.8.4.4;/8.8.4.4;\n\n# This is the very basic subnet between the PiGuard and the Axis Camera\nsubnet 10.19.12.0 netmask 255.255.255.0 {\n# we are making the range only 1 ip-address to be sure that the Camera gets\n# the same address every time.\nrange 10.19.12.2 10.19.12.2;\noption routers 10.19.12.1;\n}/g"  /etc/dhcp/dhcpd.conf
   fi
+}
 
+do_install_iptables() {
+  echo "Setup Ip forwarding between the cable and wi-fi interface by editing the file /etc/sysctl.conf"
+  sudo sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
+  echo '\nThe most popular firewall for Linux is called "iptables" and it is one of the few that has been ported to Raspberry Pi. Installing iptables'
+  sudo apt-get install iptables
+  echo '\nBy default, iptables is set to allow ALL connections (not performing any firewall blocking or filtering at all).'
+  echo 'The order of the following statements is IMPORTANT - doing this in the wrong order could block your SSH (putty) access.'
+  sudo iptables -A INPUT -j ACCEPT -m state --state ESTABLISHED,RELATED
+  echo '\nThis will allow any connection that has been properly established and related to pass through. This is a precursor for later openings in the firewall.'
+  sudo iptables -A INPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT
+  echo '\nThis will allow you connect to Raspberry PI via SSH.'
+  sudo iptables -A INPUT -p tcp --dport 21 -m state --state NEW -j ACCEPT
+  sudo iptables -A INPUT -p tcp --dport ftp-data -j ACCEPT
+  echo '\nThis will allow you connect to the FTP server running on the PiGuard'
+  sudo iptables -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+  echo '\nThis will allow you to ping the Raspberry PI'
+  sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+  echo '\nThis will set the Wi-fi (wlan0) to be the outward IP address where everything else - e.g. the camera will be masquerading behind'
+  sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination 10.19.12.2:80
+  echo '\nThis will redirect the port 80 on the PiGuard to port 80 on the camera.'
+  sudo iptables -P INPUT DROP
+  echo '\nThis will block all traffic not accepted by one of the rules above'
+  echo '\nThe command sudo iptables -L lists all the rules you have entered into the firewall.'
+  echo '\nSaving the iptables (firewall) configuration to the file /etc/network/iptables.conf'
+  sudo bash -c 'iptables-save > /etc/network/iptables.conf'
+  echo '\nSetup this firewall configuration to happen automatically on reboot'
+  echo 'create a new file called setupiptables in the /etc/network/if-up.d directory'
+  sudo sh -c 'echo "#!/bin/bash" > /etc/network/if-up.d/setupiptables'
+  sudo sh -c 'echo "/sbin/iptables-restore < /etc/network/iptables.conf" >> /etc/network/if-up.d/setupiptables'
+  echo '\nset the file to be executable (run as a command)'
+  sudo chmod +x /etc/network/if-up.d/setupiptables
 }
 
 do_free_disk() {
@@ -565,7 +597,8 @@ do_setup_menu() {
     "C Install PiTFT mini display drivers" ""\
     "D Optional:  Flip Mini display & reboot" ""\
     "E Install piguard_check" ""\
-    "F install DHCP Server" ""\
+    "F Install DHCP Server" ""\
+    "G Install firewall" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -587,6 +620,7 @@ do_setup_menu() {
       D\ *) do_upside_down ;;
       E\ *) do_install_piguard_check ;;
       F\ *) do_install_dhcp ;;
+      G\ *) do_install_iptables ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
