@@ -479,21 +479,22 @@ do_get_status() {
     DREAMHOSTCONNECTION="Bad"
   fi
 
-  IMAGECOUNT=$(find ~/images.incoming/. | grep -v "images.incoming/." | wc -l)
+  IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
   DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
-  FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9]*[GMK] *[0-9]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
+  FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
 
   STATUSTEXT="$(date)
+Name: $HOSTNAME
 Wi-Fi   : $WIFI_IP_ADDR
 Ethernet: $ETH0_IP_ADDR
 Camera Connection   : $CAMERACONNECTION
 Wi-Fi Connection    : $WIFICONNECTION
 Internet Connection : $INTERNETCONNECTION
 Dreamhost Connection: $DREAMHOSTCONNECTION
-Pending Status: $DAYCOUNT Day(s) & $IMAGECOUNT Images
+Pending Upload: $DAYCOUNT Day(s) & $IMAGECOUNT Images
 Free Disk: $FREEDISK"
 
-  whiptail --title "Get IP addresses" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
+  whiptail --title "Piguard Status" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
 }
 
 do_ping_camera() {
@@ -525,7 +526,7 @@ do_ping_dreamhost() {
 
 do_count_incoming() {
 
- IMAGECOUNT=$(find ~/images.incoming/. | grep -v "images.incoming/." | wc -l)
+ IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
  DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
  whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
 
