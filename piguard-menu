@@ -87,6 +87,9 @@ For California please select\n
 do_set_hostname_gpu_mem_ssh() {
   echo "setting hostname"
   echo
+  if [ $HOSTNAME = "raspberrypi" ]; then
+    HOSTNAME="piguard-"
+  fi
   HOSTNAME=$(whiptail --title "Set hostname" --inputbox 'Enter the new hostname' $WT_HEIGHT $WT_WIDTH "$HOSTNAME" 3>&1 1>&2 2>&3)
   exitstatus=$?
   if [ $exitstatus = 0 ]; then
@@ -271,6 +274,14 @@ do_install_ftp_upload() {
 do_menu_on_login() {
   echo "setting piguard-menu to run on start-up"
   echo "piguard-menu" > ~/.bash_profile
+  echo "setting console to auto-login"
+  if grep -Fq "1:2345:respawn:/bin/login -f pi tty1 </dev/tty1 >/dev/tty1 2>&1" /etc/inittab
+  then
+    echo "autologin already enabled"
+  else
+    echo "enabling auto login"
+    sudo sed -i "s/1:2345:respawn:\/sbin\/getty --noclear 38400 tty1/#1:2345:respawn:\/sbin\/getty --noclear 38400 tty1\n1:2345:respawn:\/bin\/login -f pi tty1 <\/dev\/tty1 >\/dev\/tty1 2>\&1/1" /etc/inittab
+  fi
 }
 
 
@@ -366,7 +377,7 @@ do_install_piguard_check() {
 do_install_dhcp() {
   sudo apt-get install isc-dhcp-server
   sudo sed -i 's/option domain-name "[a-zA-Z0-1_\.-]*";/option domain-name "piguard.localnet";/g' /etc/dhcp/dhcpd.conf
-  sudo sed -i 's/option domain-name-servers [a-zA-Z0-9_\., -]*;/option domain-name 8.8.8.8, 8.8.4.4;/g' /etc/dhcp/dhcpd.conf
+  sudo sed -i 's/option domain-name-servers [a-zA-Z0-9_\., -]*;/option domain-name-servers 8.8.8.8, 8.8.4.4;/g' /etc/dhcp/dhcpd.conf
   if grep -q "subnet 10.19.12.0" /etc/dhcp/dhcpd.conf; then
     echo "subnet already defined in dhcp"
   else
@@ -565,6 +576,8 @@ do_maintenance_menu() {
     "2 Update linux & libraries" "" \
     "3 Update ftp_upload.py" "" \
     "4 update piguard_check" "" \
+    "5 Set Wifi name and password" "" \
+    "6 Edit ftp_upload settings" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -575,6 +588,8 @@ do_maintenance_menu() {
       2\ *) do_update_piguard_linux ;;
       3\ *) do_download_ftp_upload_py ;;
       4\ *) do_download_piguard_check ;;
+      5\ *) do_set_ssid_password ;;
+      6\ *) do_setup_ftp_upload ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -583,44 +598,40 @@ do_maintenance_menu() {
 
 do_setup_menu() {
   SELECTION=$(whiptail --title "piguard-menu Setup on $HOSTNAME" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-    "1 Set Locale" "" \
-    "2 Set Time Zone" "" \
-    "3 Set hostname, GPU Mem, enable SSH, RCA" "" \
-    "4 Update linux & libraries" "" \
-    "5 Set Cable to Cam and wifi to upload" "" \
-    "6 Change Wifi name and password" "" \
-    "7 Install and start ftp-server" "" \
-    "8 install NG ftp_upload" "" \
-    "9 Edit ftp_upload settings" "" \
-    "A Set menu to start on login" "" \
-    "B Set font for PiTFT mini display" "" \
-    "C Install PiTFT mini display drivers" ""\
-    "D Optional:  Flip Mini display & reboot" ""\
+    "1 Auto console login with menu" "" \
+    "2 Set hostname and misc then reboot" "" \
+    "3 Update linux & libraries" "" \
+    "4 Set font for PiTFT mini display" "" \
+    "5 Install PiTFT mini display drivers" ""\
+    "6 Optional:  Flip Mini display & reboot" ""\
+    "7 Set Locale" "" \
+    "8 Set Time Zone" "" \
+    "9 Install and start ftp-server" "" \
+    "A install NG ftp_upload" "" \
+    "B Install DHCP Server" ""\
+    "C Install firewall" ""\
+    "D Set Cable to Cam and wifi to upload" "" \
     "E Install piguard_check" ""\
-    "F Install DHCP Server" ""\
-    "G Install firewall" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
     do_finish
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
-      1\ *) do_set_locale ;;
-      2\ *) do_set_timezone ;;
-      3\ *) do_set_hostname_gpu_mem_ssh ;;
-      4\ *) do_update_piguard_linux ;;
-      5\ *) do_setup_wifi ;;
-      6\ *) do_set_ssid_password ;;
-      7\ *) do_install_ftp ;;
-      8\ *) do_install_ftp_upload ;;
-      9\ *) do_setup_ftp_upload ;;
-      A\ *) do_menu_on_login ;;
-      B\ *) do_set_font_for_pitft ;;
-      C\ *) do_install_pitft ;;
-      D\ *) do_upside_down ;;
+      1\ *) do_menu_on_login ;;
+      2\ *) do_set_hostname_gpu_mem_ssh ;;
+      3\ *) do_update_piguard_linux ;;
+      4\ *) do_set_font_for_pitft ;;
+      5\ *) do_install_pitft ;;
+      6\ *) do_upside_down ;;
+      7\ *) do_set_locale ;;
+      8\ *) do_set_timezone ;;
+      9\ *) do_install_ftp ;;
+      A\ *) do_install_ftp_upload ;;
+      B\ *) do_install_dhcp ;;
+      C\ *) do_install_iptables ;;
+      D\ *) do_setup_wifi ;;
       E\ *) do_install_piguard_check ;;
-      F\ *) do_install_dhcp ;;
-      G\ *) do_install_iptables ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
