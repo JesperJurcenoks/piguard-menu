@@ -445,11 +445,55 @@ do_reboot() {
   sudo reboot
 }
 
-do_get_wifi_ip() {
-  WIFI_IP_ADDR=$(ifconfig wlan0 | awk '/addr:/ {print $2;}')
-  ETH0_IP_ADDR=$(ifconfig eth0 | awk '/addr:/ {print $2;}')
-  whiptail --title "Get IP addresses" --msgbox "WI-FI   : $WIFI_IP_ADDR\n\nEthernet: $ETH0_IP_ADDR" 12 36
+do_get_status() {
+  WIFI_IP_ADDR=$(ifconfig wlan0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
+  ETH0_IP_ADDR=$(ifconfig eth0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
 
+  PINGRESULT=$(ping -c 1 -W 1 10.19.12.2 2>&1)
+  if [ $? = 0 ]; then
+    CAMERACONNECTION="Good"
+  else
+    CAMERACONNECTION="Bad"
+  fi
+
+  GATEWAY_ADDR=$(route -n | grep "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
+  PINGRESULT=$(ping -c 1 -W 1 $GATEWAY_ADDR 2>&1)
+  if [ $? = 0 ]; then
+    WIFICONNECTION="Good"
+  else
+    WIFICONNECTION="Bad"
+  fi
+
+  PINGRESULT=$(ping -c 1 -W 1 www.google.com 2>&1)
+  if [ $? = 0 ]; then
+    INTERNETCONNECTION="Good"
+  else
+    INTERNETCONNECTION="Bad"
+  fi
+
+  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._]*"' | grep -o '[a-z0-9AZ._]*')
+  PINGRESULT=$(ping -c 1 -W 1 $DREAMHOST_ADDR 2>&1)
+  if [ $? = 0 ]; then
+    DREAMHOSTCONNECTION="Good"
+  else
+    DREAMHOSTCONNECTION="Bad"
+  fi
+
+  IMAGECOUNT=$(find ~/images.incoming/. | grep -v "images.incoming/." | wc -l)
+  DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
+  FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9]*[GMK] *[0-9]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
+
+  STATUSTEXT="$(date)
+Wi-Fi   : $WIFI_IP_ADDR
+Ethernet: $ETH0_IP_ADDR
+Camera Connection   : $CAMERACONNECTION
+Wi-Fi Connection    : $WIFICONNECTION
+Internet Connection : $INTERNETCONNECTION
+Dreamhost Connection: $DREAMHOSTCONNECTION
+Pending Status: $DAYCOUNT Day(s) & $IMAGECOUNT Images
+Free Disk: $FREEDISK"
+
+  whiptail --title "Get IP addresses" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
 }
 
 do_ping_camera() {
@@ -481,7 +525,7 @@ do_ping_dreamhost() {
 
 do_count_incoming() {
 
- IMAGECOUNT=$(find ~/images.incoming/. | wc -l)
+ IMAGECOUNT=$(find ~/images.incoming/. | grep -v "images.incoming/." | wc -l)
  DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
  whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
 
@@ -647,7 +691,7 @@ HOSTNAME="`cat /etc/hostname`"
 
 while true; do
   SELECTION=$(whiptail --title "piguard-menu on $HOSTNAME" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-    "1 Get IP Addresses of device" "" \
+    "1 Get Status of Piguard" "" \
     "2 Display ftp_uppload.log" "" \
     "3 Diagnostics Menu" ""\
     "4 Maintenance menu" "" \
@@ -662,7 +706,7 @@ while true; do
     do_finish
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
-      1\ *) do_get_wifi_ip ;;
+      1\ *) do_get_status ;;
       2\ *) do_display_ftp_upload.log ;;
       3\ *) do_diag_menu ;;
       4\ *) do_maintenance_menu;;
