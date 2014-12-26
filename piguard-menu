@@ -338,15 +338,9 @@ do_download_piguard_check() {
   sudo chmod +x ~/ftp_upload/piguard_check.sh
 }
 
-do_set_cronlog() {
-  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh >>  ~/ftp_upload/cron.log 2>&1
-*/1 * * * * ~/ftp_upload/piguard_check.sh >>  ~/ftp_upload/cron.log 2>&1" | crontab
-
-}
-
 do_set_piguard_check_crontab() {
-  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh
-*/5 * * * * ~/ftp_upload/piguard_check.sh" | crontab
+  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1
+*/5 * * * * ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1" | crontab
 }
 
 do_no_crontab() {
@@ -355,7 +349,8 @@ do_no_crontab() {
 
 do_display_cronlog() {
   clear
-  tail -n 30 ~/ftp_upload/cron.log
+  more ~/ftp_upload/cron.log
+  echo 
   echo "press any key to continue"
   read -s -n 1
 }
@@ -479,6 +474,13 @@ do_get_status() {
     DREAMHOSTCONNECTION="Bad"
   fi
 
+  crontab -l
+  if [ $? = 0 ];then
+    CRONJOB="Enabled"
+  else
+    CRONJOB="Disabled"
+  fi
+
   IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
   DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
   FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
@@ -492,7 +494,8 @@ Wi-Fi Connection    : $WIFICONNECTION
 Internet Connection : $INTERNETCONNECTION
 Dreamhost Connection: $DREAMHOSTCONNECTION
 Pending Upload: $DAYCOUNT Day(s) & $IMAGECOUNT Images
-Free Disk: $FREEDISK"
+Free Disk: $FREEDISK
+Background Job is $CRONJOB"
 
   whiptail --title "Piguard Status" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
 }
@@ -563,10 +566,9 @@ do_diag_menu() {
     "5 Check Wifi Adapter" ""\
     "6 Count Images pending upload" ""\
     "7 Show free disk space" "" \
-    "8 Set background job (cron) 1 min logging" "" \
-    "9 Display background job (cron) log" "" \
-    "A Start background jobs (5 min no logging)" ""\
-    "B Stop all background jobs (cron)" "" \
+    "8 Display background job (cron) log" "" \
+    "9 Start background job" ""\
+    "A Stop background job (cron)" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -580,10 +582,9 @@ do_diag_menu() {
       5\ *) do_check_ralink ;;
       6\ *) do_count_incoming ;;
       7\ *) do_free_disk ;;
-      8\ *) do_set_cronlog ;;
-      9\ *) do_display_cronlog ;;
-      A\ *) do_set_piguard_check_crontab ;;
-      B\ *) do_no_crontab ;;
+      8\ *) do_display_cronlog ;;
+      9\ *) do_set_piguard_check_crontab ;;
+      A\ *) do_no_crontab ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
