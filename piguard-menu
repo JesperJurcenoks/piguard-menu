@@ -95,9 +95,20 @@ do_set_hostname_gpu_mem_ssh() {
   if [ $exitstatus = 0 ]; then
     sudo sed -i "s/^.*$/$HOSTNAME/g" /etc/hostname
     sudo sed -i "s/127.0.1.1.*$/127.0.1.1\t$HOSTNAME/g" /etc/hosts
+    FORCEREBOOT=1
+  else
+    HOSTNAME="`cat /etc/hostname`"
   fi
   echo
   echo "done setting hostname"
+  echo
+  if grep -Fq "camera" /etc/hosts
+  then
+    echo "camera already defined in host file"
+  else
+    echo "adding camera to host file"
+    sudo sh -c 'echo "10.19.12.2\tcamera" >> /etc/hosts'
+  fi
   echo
   echo "setting Graphics memory (GPU) to 16Kb..."
   sudo set_config_var gpu_mem "16" /boot/config.txt
@@ -112,6 +123,10 @@ do_set_hostname_gpu_mem_ssh() {
   sudo sed -i "s/^hdmi_force_hotplug=1/#hdmi_force_hotplug=1/g" /boot/config.txt
   echo "done disabling Force HDMI"
 
+  if [ $FORCEREBOOT = 1 ]; then
+    sudo reboot
+  fi
+  
 }
 
 do_check_ralink() {
@@ -188,6 +203,20 @@ do_wpa_supplicant_conf(){
 }
 
 
+do_set_camera_ip() {
+
+  CAMERAIP=$(grep 'camera' /etc/hosts | grep -o "[0-9.]*")
+  echo $CAMERAIP
+  CAMERAIP=$(whiptail --title "Enter Camera IP" --inputbox "for connectivity testing enter IP address of Camera " $WT_HEIGHT $WT_WIDTH $CAMERAIP 3>&1 1>&2 2>&3)
+  if [ $? = 0 ]; then
+    echo "User selected Ok and entered" $CAMERAIP
+    sudo sed -i "s/.*camera/$CAMERAIP\tcamera/1" /etc/hosts
+  else
+    echo "User selected Cancel."
+  fi
+
+}
+
 do_set_ssid_password() {
 
   WIFINETWORKS=$(sudo iwlist wlan0 scan | grep "ESSID" | sed -e 's/.*ESSID:"\([^"]\+\)".*/  \1/' | grep -v ESSID)
@@ -253,9 +282,7 @@ do_download_ftp_upload_py() {
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
 }
 
-do_setup_ftp_upload() {
-  mkdir /home/pi/images.incoming
-  mkdir /home/pi/images.uploaded
+do_edit_ftp_upload_py(){
   sudo nano /home/pi/ftp_upload/localsettings.py
 }
 
@@ -268,7 +295,9 @@ do_install_ftp_upload() {
   mkdir /home/pi/ftp_upload
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
   do_download_ftp_upload_py
-  do_setup_ftp_upload
+  mkdir /home/pi/images.incoming
+  mkdir /home/pi/images.uploaded
+  do_edit_ftp_upload_py
 }
 
 do_menu_on_login() {
@@ -339,13 +368,42 @@ do_download_piguard_check() {
 }
 
 do_set_piguard_check_crontab() {
-  echo "@reboot  sleep 60 && ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1
-*/5 * * * * ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1" | crontab
+  CRONJOBS=$(crontab -l | grep -v "piguard_check.sh" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  PIGUARDCHECKCRON="@reboot sleep 60 && ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1
+*/5 * * * * ~/ftp_upload/piguard_check.sh > ~/ftp_upload/cron.log 2>&1"
+  echo "$COMMENT
+$CRONJOBS
+$PIGUARDCHECKCRON" |  crontab
+}
+
+do_remove_piguard_check_crontab(){
+  CRONJOBS=$(crontab -l | grep -v "piguard_check.sh" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  echo "$COMMENT
+$CRONJOBS
+" |  crontab
 }
 
 do_no_crontab() {
   crontab -r
 }
+
+
 
 do_display_cronlog() {
   clear
@@ -444,7 +502,7 @@ do_get_status() {
   WIFI_IP_ADDR=$(ifconfig wlan0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
   ETH0_IP_ADDR=$(ifconfig eth0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
 
-  PINGRESULT=$(ping -c 1 -W 1 10.19.12.2 2>&1)
+  PINGRESULT=$(ping -c 1 -W 1 camera 2>&1)
   if [ $? = 0 ]; then
     CAMERACONNECTION="Good"
   else
@@ -466,7 +524,7 @@ do_get_status() {
     INTERNETCONNECTION="Bad"
   fi
 
-  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._]*"' | grep -o '[a-z0-9AZ._]*')
+  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._-]*"' | grep -o '[a-z0-9AZ._-]*')
   PINGRESULT=$(ping -c 1 -W 1 $DREAMHOST_ADDR 2>&1)
   if [ $? = 0 ]; then
     DREAMHOSTCONNECTION="Good"
@@ -474,11 +532,18 @@ do_get_status() {
     DREAMHOSTCONNECTION="Bad"
   fi
 
-  crontab -l
+  CRONRESULT=$(crontab -l)
+  echo "$CRONRESULT" | grep -q "piguard_check.sh"
   if [ $? = 0 ];then
     CRONJOB="Enabled"
   else
     CRONJOB="Disabled"
+  fi
+  echo "$CRONRESULT" | grep -q "wait-for-remote-support.sh"
+  if [ $? = 0 ];then
+    WAITSUPPORT="Enabled"
+  else
+    WAITSUPPORT="Disabled"
   fi
 
   IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
@@ -495,14 +560,15 @@ Internet Connection : $INTERNETCONNECTION
 Dreamhost Connection: $DREAMHOSTCONNECTION
 Pending Upload: $DAYCOUNT Day(s) & $IMAGECOUNT Images
 Free Disk: $FREEDISK
-Background Job is $CRONJOB"
+Background Job is $CRONJOB
+Waiting for Support is $WAITSUPPORT"
 
   whiptail --title "Piguard Status" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
 }
 
 do_ping_camera() {
 
-  PINGRESULT=$(ping -c 4 -W 1 10.19.12.2 2>&1)
+  PINGRESULT=$(ping -c 4 -W 1 camera 2>&1)
   whiptail --title "Ping Camera Result" --msgbox "$PINGRESULT" 17 48
 }
 
@@ -521,7 +587,7 @@ do_ping_gateway() {
 
 do_ping_dreamhost() {
 
-  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._]*"' | grep -o '[a-z0-9AZ._]*')
+  DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._-]*"' | grep -o '[a-z0-9AZ._-]*')
   PINGRESULT=$(ping -c 4 -W 1 $DREAMHOST_ADDR 2>&1)
   whiptail --title "Ping Dreamhost Result" --msgbox "$PINGRESULT" 17 48
 }
@@ -556,9 +622,88 @@ do_update_piguard_linux() {
 
 }
 
+
+do_install_remote_support(){
+  URL="http://support.neighborhoodguard.org/remote-support/"$HOSTNAME"-remote-support"
+  wget $URL -O ~/ftp_upload/remote-support
+  if [ $? = 0 ]; then
+    USERNAME=$(grep "^username.*=" ~/ftp_upload/remote-support | sed "s/username.*=//1" | sed "s/[^a-zA-Z0-9._-]//1")
+    HOSTNAME=$(grep "^host.*=" ~/ftp_upload/remote-support | sed "s/host.*=//1" | sed "s/[^a-zA-Z0-9._-]//1")
+
+    if [ -d "/home/pi/.ssh" ]; then
+      echo "directory /home/pi/.ssh already exists"
+    else
+      mkdir ~/.ssh
+      chmod 700 ~/.ssh
+    fi
+    if [ -e "/home/pi/.ssh/id_rsa" ]; then
+      echo "RSA Key already exists - leave be"
+    else
+      ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ""
+    fi
+    echo "clear out the old dreamhost key"
+    ssh-keygen -R $HOSTNAME
+    echo "get the current dreamhosts key"
+    ssh-keyscan -H $HOSTNAME >> ~/.ssh/known_hosts
+    echo "copy our key to dreamhost - Password required get it from your Neighborhood Guard support contact"
+    ssh-copy-id $USERNAME@$HOSTNAME
+    echo "downloading the wait-for-remote-support script"
+    sudo wget https://raw.githubusercontent.com/JesperJurcenoks/wait-for-remote-support/master/wait-for-remote.support.sh -O ~/ftp_upload/wait-for-remote-support.sh
+    sudo chmod +x ~/ftp_upload/wait-for-remote-support.sh
+  else
+    echo "failed to get needed configuration file"
+    echo "try again"
+    echo
+    echo "press any key to continue"
+    read -s -n 1
+  fi
+}
+
+do_start_wait_for_remote_support() {
+  echo "start wait for remote support"
+  ~/ftp_upload/wait-for-remote-support.sh
+
+  echo "Setting wait-for-remote-support crontab"
+  CRONJOBS=$(crontab -l | grep -v "wait-for-remote-support.sh" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  WAIT4SUPPORTCRON="@reboot sleep 90 && ~/ftp_upload/wait-for-remote-support.sh > ~/ftp_upload/support_cron.log 2>&1
+0 * * * * ~/ftp_upload/wait-for-remote-support.sh > ~/ftp_upload/support_cron.log 2>&1"
+  echo "$COMMENT
+$CRONJOBS
+$WAIT4SUPPORTCRON" |  crontab
+}
+
+do_end_wait_for_remote_support() {
+  echo "end wait for remote support"
+  kill $(pgrep -f "ssh -fN -R") 
+
+  CRONJOBS=$(crontab -l | grep -v "wait-for-remote-support.sh" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  echo "$COMMENT
+$CRONJOBS
+" |  crontab
+}
+
+
+
+
 do_diag_menu() {
 
-  SELECTION=$(whiptail --title "piguard-menu Diagnostics on $HOSTNAME" --menu "diagsnostics Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu Diagnostics on $HOSTNAME" --menu "diagsnostics Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
     "1 Check Camera connection (Ping it)" ""\
     "2 Check Internet connection (Ping Google)" ""\
     "3 Check Wifi connection (Ping gateway)" ""\
@@ -567,8 +712,8 @@ do_diag_menu() {
     "6 Count Images pending upload" ""\
     "7 Show free disk space" "" \
     "8 Display background job (cron) log" "" \
-    "9 Start background job" ""\
-    "A Stop background job (cron)" "" \
+    "9 Start piguard_check background job" ""\
+    "A Stop piguard_check background job" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -584,7 +729,7 @@ do_diag_menu() {
       7\ *) do_free_disk ;;
       8\ *) do_display_cronlog ;;
       9\ *) do_set_piguard_check_crontab ;;
-      A\ *) do_no_crontab ;;
+      A\ *) do_remove_piguard_check_crontab;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -592,12 +737,12 @@ do_diag_menu() {
 }
 
 do_advanced_settings() {
-
-  SELECTION=$(whiptail --title "piguard-menu Adavanced on $HOSTNAME" --menu "Advanced Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "Adavanced Settings on $HOSTNAME" --menu "Advanced Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
     "1 Set Ethernet to Internet(dhcp)" ""\
     "2 Set ethernet to Camera (10.19.12.1)" ""\
     "3 Use Pitft mini display and reboot" ""\
     "4 Use HDMI and reboot" ""\
+    "5 remove all crontab entries" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -608,22 +753,43 @@ do_advanced_settings() {
       2\ *) do_net_interfaces_eth0_camera ;;
       3\ *) do_console_to_pitft ;;
       4\ *) do_console_to_hdmi ;;
+      5\ *) do_no_crontab ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
-
 }
+
+do_support_menu() {
+  SELECTION=$(whiptail --title "Support Menu on $HOSTNAME" --menu "Support Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
+    "1 Start Wait for Remote support session" ""\
+    "2 End Wait for Remote support session" ""\
+    "3 Install Remote Support (Req Support PWD)" ""\
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_start_wait_for_remote_support ;;
+      2\ *) do_end_wait_for_remote_support ;;
+      3\ *) do_install_remote_support ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
+}
+
 
 
 do_maintenance_menu() {
 
-  SELECTION=$(whiptail --title "piguard-menu Maintenance on $HOSTNAME" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "Maintenance Menu on $HOSTNAME" --menu "Maintenance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
     "1 Update PiGuard Menu" "" \
     "2 Update linux & libraries" "" \
     "3 Update ftp_upload.py" "" \
     "4 update piguard_check" "" \
     "5 Set Wifi name and password" "" \
     "6 Edit ftp_upload settings" "" \
+    "7 Set Camera IP address" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -635,15 +801,16 @@ do_maintenance_menu() {
       3\ *) do_download_ftp_upload_py ;;
       4\ *) do_download_piguard_check ;;
       5\ *) do_set_ssid_password ;;
-      6\ *) do_setup_ftp_upload ;;
+      6\ *) do_edit_ftp_upload_py ;;
+      7\ *) do_set_camera_ip ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
 
 }
 
-do_setup_menu() {
-  SELECTION=$(whiptail --title "piguard-menu Setup on $HOSTNAME" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+do_setup_menu_wifi() {
+  SELECTION=$(whiptail --title "Setup WiFi on $HOSTNAME" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
     "1 Auto console login with menu" "" \
     "2 Set hostname and misc then reboot" "" \
     "3 Update linux & libraries" "" \
@@ -684,6 +851,45 @@ do_setup_menu() {
 
 }
 
+do_setup_menu_lan() {
+  SELECTION=$(whiptail --title "Setup LAN on $HOSTNAME" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
+    "1 Auto console login with menu" "" \
+    "2 Set hostname and misc then reboot" "" \
+    "3 Update linux & libraries" "" \
+    "4 Set font for PiTFT mini display" "" \
+    "5 Install PiTFT mini display drivers" ""\
+    "6 Optional:  Flip Mini display & reboot" ""\
+    "7 Set Locale" "" \
+    "8 Set Time Zone" "" \
+    "9 Install and start ftp-server" "" \
+    "A install NG ftp_upload" "" \
+    "B Set static Ip addresses" "" \
+    "C Install piguard_check" ""\
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_menu_on_login ;;
+      2\ *) do_set_hostname_gpu_mem_ssh ;;
+      3\ *) do_update_piguard_linux ;;
+      4\ *) do_set_font_for_pitft ;;
+      5\ *) do_install_pitft ;;
+      6\ *) do_upside_down ;;
+      7\ *) do_set_locale ;;
+      8\ *) do_set_timezone ;;
+      9\ *) do_install_ftp ;;
+      A\ *) do_install_ftp_upload ;;
+      B\ *) do_set_static_ip ;;
+      C\ *) do_install_piguard_check ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+  fi
+
+}
+
+
 
 #
 #interactive use loop
@@ -692,16 +898,18 @@ do_setup_menu() {
 HOSTNAME="`cat /etc/hostname`"
 
 while true; do
-  SELECTION=$(whiptail --title "piguard-menu on $HOSTNAME" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
+  SELECTION=$(whiptail --title "piguard-menu on $HOSTNAME" --menu "Menu Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Exit --ok-button Select \
     "1 Get Status of Piguard" "" \
     "2 Display ftp_uppload.log" "" \
     "3 Diagnostics Menu" ""\
     "4 Maintenance menu" "" \
-    "5 Setup Menu" "" \
-    "6 Advanced settings" "" \
-    "7 Restart (Reboot) PiGuard" "" \
-    "8 Shutdown PiGuard safely" "" \
-    "9 About PiGuard-Config" "" \
+    "5 Support Menu" "" \
+    "6 Setup Menu (WiFi Edition)" "" \
+    "7 Setup Menu (Lan Edition)" "" \
+    "8 Advanced settings" "" \
+    "9 Restart (Reboot) PiGuard" "" \
+    "A Shutdown PiGuard safely" "" \
+    "B About PiGuard-Menu" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -711,12 +919,14 @@ while true; do
       1\ *) do_get_status ;;
       2\ *) do_display_ftp_upload.log ;;
       3\ *) do_diag_menu ;;
-      4\ *) do_maintenance_menu;;
-      5\ *) do_setup_menu;;
-      6\ *) do_advanced_settings ;;
-      7\ *) do_reboot ;;
-      8\ *) do_shutdown;;
-      9\ *) do_about ;;
+      4\ *) do_maintenance_menu ;;
+      5\ *) do_support_menu ;;
+      6\ *) do_setup_menu_wifi ;;
+      7\ *) do_setup_menu_lan ;;
+      8\ *) do_advanced_settings ;;
+      9\ *) do_reboot ;;
+      A\ *) do_shutdown;;
+      B\ *) do_about ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   else
