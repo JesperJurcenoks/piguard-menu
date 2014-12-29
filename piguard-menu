@@ -624,11 +624,16 @@ do_update_piguard_linux() {
 
 
 do_install_remote_support(){
+
+  echo "Installing autossh"
+  sudo apt-get update
+  sudo apt-get install autossh
+
   URL="http://support.neighborhoodguard.org/remote-support/"$HOSTNAME"-remote-support"
   wget $URL -O ~/ftp_upload/remote-support
   if [ $? = 0 ]; then
     USERNAME=$(grep "^username.*=" ~/ftp_upload/remote-support | sed "s/username.*=//1" | sed "s/[^a-zA-Z0-9._-]//1")
-    HOSTNAME=$(grep "^host.*=" ~/ftp_upload/remote-support | sed "s/host.*=//1" | sed "s/[^a-zA-Z0-9._-]//1")
+    BOUNCEHOSTNAME=$(grep "^host.*=" ~/ftp_upload/remote-support | sed "s/host.*=//1" | sed "s/[^a-zA-Z0-9._-]//1")
 
     if [ -d "/home/pi/.ssh" ]; then
       echo "directory /home/pi/.ssh already exists"
@@ -636,20 +641,24 @@ do_install_remote_support(){
       mkdir ~/.ssh
       chmod 700 ~/.ssh
     fi
-    if [ -e "/home/pi/.ssh/id_rsa" ]; then
+    if [ -e "/home/pi/.ssh/tunnel_rsa" ]; then
       echo "RSA Key already exists - leave be"
     else
-      ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ""
+      echo "making a special key for just tunnel use"
+      ssh-keygen -t rsa -f ~/.ssh/tunnel_rsa -N ""
     fi
     echo "clear out the old dreamhost key"
-    ssh-keygen -R $HOSTNAME
-    echo "get the current dreamhosts key"
-    ssh-keyscan -H $HOSTNAME >> ~/.ssh/known_hosts
+    ssh-keygen -R $BOUNCEHOSTNAME
+    echo "get the current dreamhosts key and put it in known hosts to avoid getting 'authentity of host ... can\'t be established' prompt"
+    ssh-keyscan -H $BOUNCEHOSTNAME >> ~/.ssh/known_hosts
     echo "copy our key to dreamhost - Password required get it from your Neighborhood Guard support contact"
-    ssh-copy-id $USERNAME@$HOSTNAME
+    ssh-copy-id -i ~/.ssh/tunnel_rsa $USERNAME@$BOUNCEHOSTNAME
+    echo "limit the trusted connection to tunnel only and nothing else"
+    ssh -i ~/.ssh/tunnel_rsa $USERNAME@$BOUNCEHOSTNAME "~/set-tunnel-limit-on-key.sh $HOSTNAME"
+
     echo "downloading the wait-for-remote-support script"
-    sudo wget https://raw.githubusercontent.com/JesperJurcenoks/wait-for-remote-support/master/wait-for-remote.support.sh -O ~/ftp_upload/wait-for-remote-support.sh
-    sudo chmod +x ~/ftp_upload/wait-for-remote-support.sh
+#    sudo wget https://raw.githubusercontent.com/JesperJurcenoks/wait-for-remote-support/master/wait-for-remote.support.sh -O ~/ftp_upload/wait-for-remote-support.sh
+#    sudo chmod +x ~/ftp_upload/wait-for-remote-support.sh
   else
     echo "failed to get needed configuration file"
     echo "try again"
@@ -761,8 +770,8 @@ do_advanced_settings() {
 
 do_support_menu() {
   SELECTION=$(whiptail --title "Support Menu on $HOSTNAME" --menu "Support Menu" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-    "1 Start Wait for Remote support session" ""\
-    "2 End Wait for Remote support session" ""\
+    "1 Start 'Wait for Remote Support' session" ""\
+    "2 End 'Wait for Remote Support' session" ""\
     "3 Install Remote Support (Req Support PWD)" ""\
     3>&1 1>&2 2>&3)
   RET=$?
