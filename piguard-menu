@@ -279,11 +279,11 @@ do_install_ftp() {
 
 
 do_download_ftp_upload_py() {
-  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
+  wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
 }
 
 do_edit_ftp_upload_py(){
-  sudo nano /home/pi/ftp_upload/localsettings.py
+  nano /home/pi/ftp_upload/localsettings.py
 }
 
 do_install_ftp_upload() {
@@ -293,7 +293,7 @@ do_install_ftp_upload() {
   sudo apt-get install python-dev --assume-yes
   sudo pip install pysftp
   mkdir /home/pi/ftp_upload
-  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
+  wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
   do_download_ftp_upload_py
   mkdir /home/pi/images.incoming
   mkdir /home/pi/images.uploaded
@@ -340,8 +340,8 @@ do_install_pitft() {
   cd ~/pitft
   wget http://adafru.it/pitftsh -O ~/pitft/pitft.sh
   chmod +x ~/pitft/pitft.sh
-  sudo sed -i 's/if ask "Would you like the console to appear on the PiTFT display?"/if 1==0/g' ~/pitft/pitft.sh # do not do and do not ask
-  sudo sed -i 's/if ask "Would you like GPIO #23 to act as a on\/off button?"/if 1==0/g' ~/pitft/pitft.sh #never install the power down button
+  sed -i 's/if ask "Would you like the console to appear on the PiTFT display?"/if 1==0/g' ~/pitft/pitft.sh # do not do and do not ask
+  sed -i 's/if ask "Would you like GPIO #23 to act as a on\/off button?"/if 1==0/g' ~/pitft/pitft.sh #never install the power down button
   sudo ./pitft.sh -t 28c -r
   do_console_to_pitft
   sudo reboot
@@ -363,8 +363,8 @@ do_upside_down() {
 }
 
 do_download_piguard_check() {
-  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard_check/master/piguard_check.sh -O ~/ftp_upload/piguard_check.sh
-  sudo chmod +x ~/ftp_upload/piguard_check.sh
+  wget https://raw.githubusercontent.com/JesperJurcenoks/piguard_check/master/piguard_check.sh -O ~/ftp_upload/piguard_check.sh
+  chmod +x ~/ftp_upload/piguard_check.sh
 }
 
 do_set_piguard_check_crontab() {
@@ -479,7 +479,7 @@ do_free_disk() {
 
 do_about() {
   whiptail --msgbox "\
-PiGuard is an open source project by Neighborhood Guard an Oakland, CA Based non-profit
+PiGuard is an open source project by Neighborhood Guard - an Oakland, CA Based non-profit
 piguard-menu is written by Jesper Jurcenoks
 Copyright 2014 Neighborhood Guard
 Released under GNU Affero 3.0
@@ -546,7 +546,7 @@ do_get_status() {
     WAITSUPPORT="Disabled"
   fi
 
-  IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
+  IMAGECOUNT=$(find ~/images.incoming/. -type f -name '*.jpg' | wc -l)
   DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
   FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
 
@@ -595,7 +595,7 @@ do_ping_dreamhost() {
 
 do_count_incoming() {
 
- IMAGECOUNT=$(find ~/images.incoming/. | grep ".jpg" | wc -l)
+ IMAGECOUNT=$(find ~/images.incoming/. -type f -name '*.jpg' | wc -l)
  DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
  whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
 
