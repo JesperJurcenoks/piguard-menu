@@ -499,6 +499,7 @@ do_reboot() {
 }
 
 do_get_status() {
+  OS_VERSION=$(cat /etc/os-release | grep PRETTY_NAME | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
   WIFI_IP_ADDR=$(ifconfig wlan0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
   ETH0_IP_ADDR=$(ifconfig eth0 | awk '/addr:/ {print $2;}'| sed "s/addr://1")
 
@@ -506,7 +507,7 @@ do_get_status() {
   if [ $? = 0 ]; then
     CAMERACONNECTION="Good"
   else
-    CAMERACONNECTION="Bad"
+    CAMERACONNECTION="Bad "
   fi
 
   GATEWAY_ADDR=$(route -n | grep "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
@@ -514,14 +515,14 @@ do_get_status() {
   if [ $? = 0 ]; then
     WIFICONNECTION="Good"
   else
-    WIFICONNECTION="Bad"
+    WIFICONNECTION="Bad "
   fi
 
   PINGRESULT=$(ping -c 1 -W 1 www.google.com 2>&1)
   if [ $? = 0 ]; then
     INTERNETCONNECTION="Good"
   else
-    INTERNETCONNECTION="Bad"
+    INTERNETCONNECTION="Bad "
   fi
 
   DREAMHOST_ADDR=$(grep -o 'ftp_server = "[a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py |  grep -o '"[a-z0-9A-Z._-]*"' | grep -o '[a-z0-9AZ._-]*')
@@ -529,7 +530,7 @@ do_get_status() {
   if [ $? = 0 ]; then
     DREAMHOSTCONNECTION="Good"
   else
-    DREAMHOSTCONNECTION="Bad"
+    DREAMHOSTCONNECTION="Bad "
   fi
 
   CRONRESULT=$(crontab -l)
@@ -552,12 +553,12 @@ do_get_status() {
 
   STATUSTEXT="$(date)
 Name: $HOSTNAME
+OS: $OS_VERSION
 Wi-Fi   : $WIFI_IP_ADDR
 Ethernet: $ETH0_IP_ADDR
-Camera Connection   : $CAMERACONNECTION
-Wi-Fi Connection    : $WIFICONNECTION
-Internet Connection : $INTERNETCONNECTION
-Dreamhost Connection: $DREAMHOSTCONNECTION
+Connection
+ Camera  : $CAMERACONNECTION   Wi-Fi    : $WIFICONNECTION
+ Internet: $INTERNETCONNECTION   Dreamhost: $DREAMHOSTCONNECTION
 Pending Upload: $DAYCOUNT Day(s) & $IMAGECOUNT Images
 Free Disk: $FREEDISK
 Background Job is $CRONJOB
