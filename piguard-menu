@@ -22,6 +22,7 @@
 #
 ##################################################################
 
+# This size is set to fit a Raspberry PiTFT display
 WT_HEIGHT=18
 WT_WIDTH=46
 WT_MENU_HEIGHT=12
@@ -602,6 +603,18 @@ do_count_incoming() {
 
 }
 
+show_python_processes() {
+
+ PYTHONPROCESSES=$(ps aux | grep -v 'grep python' | grep python)
+ whiptail --title "python process status" --msgbox "$PYTHONPROCESSES" 17 48
+}
+
+kill_python_processes() {
+
+ pkill python
+
+}
+
 do_update_piguard_menu() {
 
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
@@ -729,6 +742,8 @@ do_diag_menu() {
     "8 Display background job (cron) log" "" \
     "9 Start piguard_check background job" ""\
     "A Stop piguard_check background job" "" \
+    "B Show python processes" "" \
+    "C Kill python processes" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -745,6 +760,8 @@ do_diag_menu() {
       8\ *) do_display_cronlog ;;
       9\ *) do_set_piguard_check_crontab ;;
       A\ *) do_remove_piguard_check_crontab;;
+      B\ *) show_python_processes;;
+      C\ *) kill_python_processes;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
