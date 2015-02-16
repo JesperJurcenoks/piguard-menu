@@ -958,11 +958,10 @@ while true; do
     "4 Maintenance menu" "" \
     "5 Support Menu" "" \
     "6 Setup Menu (WiFi Edition)" "" \
-    "7 Setup Menu (Lan Edition)" "" \
-    "8 Advanced settings" "" \
-    "9 Restart (Reboot) PiGuard" "" \
-    "A Shutdown PiGuard safely" "" \
-    "B About PiGuard-Menu" "" \
+    "7 Advanced settings" "" \
+    "8 Restart (Reboot) PiGuard" "" \
+    "9 Shutdown PiGuard safely" "" \
+    "A About PiGuard-Menu" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -975,11 +974,10 @@ while true; do
       4\ *) do_maintenance_menu ;;
       5\ *) do_support_menu ;;
       6\ *) do_setup_menu_wifi ;;
-      7\ *) do_setup_menu_lan ;;
-      8\ *) do_advanced_settings ;;
-      9\ *) do_reboot ;;
-      A\ *) do_shutdown;;
-      B\ *) do_about ;;
+      7\ *) do_advanced_settings ;;
+      8\ *) do_reboot ;;
+      9\ *) do_shutdown;;
+      A\ *) do_about ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   else
