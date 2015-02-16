@@ -26,6 +26,7 @@
 WT_HEIGHT=18
 WT_WIDTH=46
 WT_MENU_HEIGHT=12
+VERSION="1.1"
 
 
 set_config_var() {
@@ -589,7 +590,7 @@ Free Disk: $FREEDISK
 Background Job is $CRONJOB
 Waiting for Support is $WAITSUPPORT"
 
-  whiptail --title "Piguard Status" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
+  whiptail --title "Piguard Status $VERSION" --msgbox "$STATUSTEXT" $WT_HEIGHT $WT_WIDTH 
 }
 
 do_ping_camera() {
