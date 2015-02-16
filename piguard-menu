@@ -386,9 +386,10 @@ kill_piguard_check() {
 
 do_upgrade_piguard_check() {
   do_download_piguard_check
-  kill_piguard_check
   kill_python_processes
-  #cron will run piguard_check and restart the python process
+  kill_piguard_check
+  echo "Done upgrading"
+#cron will run piguard_check and restart the python process
 }
 
 do_set_piguard_check_crontab() {
