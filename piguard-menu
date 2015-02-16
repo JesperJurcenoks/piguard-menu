@@ -291,6 +291,7 @@ kill_python_processes() {
 do_upgrade_ftp_upload_py() {
   do_download_ftp_upload_py
   kill_python_processes
+  echo "python killed"
   # Piguard_check will restart ftp_upload
 }
 
