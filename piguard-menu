@@ -283,9 +283,20 @@ do_download_ftp_upload_py() {
   wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/ftp_upload.py -O /home/pi/ftp_upload/ftp_upload.py
 }
 
+kill_python_processes() {
+ pkill python
+}
+
+do_upgrade_ftp_upload_py() {
+  do_download_ftp_upload_py
+  kill_python_processes
+  # Piguard_check will restart ftp_upload
+}
+
 do_edit_ftp_upload_py(){
   nano /home/pi/ftp_upload/localsettings.py
 }
+
 
 do_install_ftp_upload() {
 
@@ -366,6 +377,18 @@ do_upside_down() {
 do_download_piguard_check() {
   wget https://raw.githubusercontent.com/JesperJurcenoks/piguard_check/master/piguard_check.sh -O ~/ftp_upload/piguard_check.sh
   chmod +x ~/ftp_upload/piguard_check.sh
+}
+
+kill_piguard_check() {
+  pkill piguard_check.sh
+}
+
+
+do_upgrade_piguard_check() {
+  do_download_piguard_check
+  kill_piguard_check
+  kill_python_processes
+  #cron will run piguard_check and restart the python process
 }
 
 do_set_piguard_check_crontab() {
@@ -609,12 +632,6 @@ show_python_processes() {
  whiptail --title "python process status" --msgbox "$PYTHONPROCESSES" 17 48
 }
 
-kill_python_processes() {
-
- pkill python
-
-}
-
 do_update_piguard_menu() {
 
   sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
@@ -820,7 +837,7 @@ do_maintenance_menu() {
     "1 Update PiGuard Menu" "" \
     "2 Update linux & libraries" "" \
     "3 Update ftp_upload.py" "" \
-    "4 update piguard_check" "" \
+    "4 Update piguard_check" "" \
     "5 Set Wifi name and password" "" \
     "6 Edit ftp_upload settings" "" \
     "7 Set Camera IP address" "" \
@@ -832,8 +849,8 @@ do_maintenance_menu() {
     case "$SELECTION" in
       1\ *) do_update_piguard_menu ;;
       2\ *) do_update_piguard_linux ;;
-      3\ *) do_download_ftp_upload_py ;;
-      4\ *) do_download_piguard_check ;;
+      3\ *) do_upgrade_ftp_upload_py ;;
+      4\ *) do_upgrade_piguard_check ;;
       5\ *) do_set_ssid_password ;;
       6\ *) do_edit_ftp_upload_py ;;
       7\ *) do_set_camera_ip ;;
