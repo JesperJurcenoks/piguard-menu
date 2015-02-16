@@ -285,7 +285,7 @@ do_download_ftp_upload_py() {
 }
 
 kill_python_processes() {
- pkill python
+ sudo pkill python
 }
 
 do_upgrade_ftp_upload_py() {
@@ -381,7 +381,7 @@ do_download_piguard_check() {
 }
 
 kill_piguard_check() {
-  pkill piguard_check.sh
+  sudo pkill piguard_check.sh
 }
 
 
