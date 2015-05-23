@@ -4,7 +4,7 @@
 # Title:     piguard_menu
 # Copyright (C) 2014 Neighborhood Guard, Inc. All rights reserved
 # Author:    Jesper Jurcenoks, Neighborhood Guard
-# Version:   1.1
+# Version:   1.11
 #
 # piguard_menu is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Affero General Public
@@ -26,7 +26,7 @@
 WT_HEIGHT=18
 WT_WIDTH=46
 WT_MENU_HEIGHT=12
-VERSION="1.1"
+VERSION="1.11"
 
 
 set_config_var() {
@@ -82,9 +82,13 @@ For California please select\n
   echo "For California select: US/Pacific-New"
 
   sudo dpkg-reconfigure tzdata
-
+  
 }
 
+do_set_timezone_timesync() {
+  do_set_timezone
+  do_set_timesync_crontab
+}
 
 do_set_hostname_gpu_mem_ssh() {
   echo "setting hostname"
@@ -394,6 +398,41 @@ do_upgrade_piguard_check() {
 #cron will run piguard_check and restart the python process
 }
 
+do_sync_time_now() {
+  sudo service ntp restart
+}
+
+do_remove_timesync_crontab() {
+  CRONJOBS=$(crontab -l | grep -v "sudo service ntp restart" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  echo "$COMMENT
+$CRONJOBS" |  crontab
+}
+
+
+do_set_timesync_crontab() {
+  CRONJOBS=$(crontab -l | grep -v "sudo service ntp restart" | grep -v "^$")
+  echo $CRONJOBS | grep -q "placeholder"
+  if [ $? = 0 ]; then
+    echo "placeholder found in crontab - all good"
+    COMMENT=""
+  else
+    COMMENT="#placeholder comment in crontab to ensure the file is never empty
+"
+  fi
+  TIMESYNCCRON="1 2 * * *  sudo service ntp restart > ~/ftp_upload/cron_ntp.log 2>&1"
+  echo "$COMMENT
+$CRONJOBS
+$TIMESYNCCRON" |  crontab
+}
+
 do_set_piguard_check_crontab() {
   CRONJOBS=$(crontab -l | grep -v "piguard_check.sh" | grep -v "^$")
   echo $CRONJOBS | grep -q "placeholder"
@@ -439,6 +478,15 @@ do_display_cronlog() {
   echo "press any key to continue"
   read -s -n 1
 }
+
+do_display_timesync_cronlog() {
+  clear
+  more ~/ftp_upload/cron_ntp.log
+  echo 
+  echo "press any key to continue"
+  read -s -n 1
+}
+
 
 do_display_ftp_upload.log() {
   clear
@@ -762,8 +810,12 @@ do_diag_menu() {
     "8 Display background job (cron) log" "" \
     "9 Start piguard_check background job" ""\
     "A Stop piguard_check background job" "" \
-    "B Show python processes" "" \
-    "C Kill python processes" "" \
+    "B Synchronize time now" "" \
+    "C Display timesync_cronlog" "" \
+    "D Start timesync daily job" ""\
+    "E Stop timesync daily job" "" \
+    "F Show python processes" "" \
+    "G Kill python processes" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -780,8 +832,12 @@ do_diag_menu() {
       8\ *) do_display_cronlog ;;
       9\ *) do_set_piguard_check_crontab ;;
       A\ *) do_remove_piguard_check_crontab;;
-      B\ *) show_python_processes;;
-      C\ *) kill_python_processes;;
+      B\ *) do_sync_time_now ;;
+      C\ *) do_display_timesync_cronlog ;;
+      D\ *) do_set_timesync_crontab ;;
+      E\ *) do_remove_timesync_crontab;;
+      F\ *) show_python_processes;;
+      G\ *) kill_python_processes;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
@@ -872,7 +928,7 @@ do_setup_menu_wifi() {
     "5 Install PiTFT mini display drivers" ""\
     "6 Optional:  Flip Mini display & reboot" ""\
     "7 Set Locale" "" \
-    "8 Set Time Zone" "" \
+    "8 Set Time Zone and timesync" "" \
     "9 Install and start ftp-server" "" \
     "A install NG ftp_upload" "" \
     "B Install DHCP Server" ""\
@@ -892,7 +948,7 @@ do_setup_menu_wifi() {
       5\ *) do_install_pitft ;;
       6\ *) do_upside_down ;;
       7\ *) do_set_locale ;;
-      8\ *) do_set_timezone ;;
+      8\ *) do_set_timezone_timesync ;;
       9\ *) do_install_ftp ;;
       A\ *) do_install_ftp_upload ;;
       B\ *) do_install_dhcp ;;
@@ -932,7 +988,7 @@ do_setup_menu_lan() {
       5\ *) do_install_pitft ;;
       6\ *) do_upside_down ;;
       7\ *) do_set_locale ;;
-      8\ *) do_set_timezone ;;
+      8\ *) do_set_timezone_timesync ;;
       9\ *) do_install_ftp ;;
       A\ *) do_install_ftp_upload ;;
       B\ *) do_set_static_ip ;;
