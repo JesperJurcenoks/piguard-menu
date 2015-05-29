@@ -90,7 +90,7 @@ do_set_timezone_timesync() {
   do_set_timesync_crontab
 }
 
-do_set_hostname_gpu_mem_ssh() {
+do_set_hostname_gpu_mem_ssh_swap() {
   echo "setting hostname"
   echo
   if [ $HOSTNAME = "raspberrypi" ]; then
@@ -104,6 +104,7 @@ do_set_hostname_gpu_mem_ssh() {
     FORCEREBOOT=1
   else
     HOSTNAME="`cat /etc/hostname`"
+    FORCEREBOOT=0
   fi
   echo
   echo "done setting hostname"
@@ -128,6 +129,16 @@ do_set_hostname_gpu_mem_ssh() {
   echo "enable RCA if there/don't force HDMI if not plugged in"
   sudo sed -i "s/^hdmi_force_hotplug=1/#hdmi_force_hotplug=1/g" /boot/config.txt
   echo "done disabling Force HDMI"
+  echo
+  echo "stop using swapfile until next boot"
+  sudo swapoff --all
+  echo "disable swapfile permanently - remove swapfile functionality"
+  sudo apt-get remove dphys-swapfile --assume-yes
+  echo "done removing swapfile functionality"
+  echo 
+  echo "remove unneeded wolfram-engine"
+  sudo apt-get remove wolfram-engine --assume-yes
+  echo "done removing the wolfram-engine"
 
   if [ $FORCEREBOOT = 1 ]; then
     sudo reboot
@@ -548,7 +559,10 @@ do_install_iptables() {
 
 do_free_disk() {
   FREEDISK=$(df -h /)
-  whiptail --title "Free Disk Space" --msgbox "$FREEDISK" 12 44
+  FREEDISKHDD=$(df -h /mnt/ngdata)
+  
+  whiptail --title "Free Disk Space" --msgbox "$FREEDISK
+  $FREEDISKHDD" 12 44
 }
 
 
@@ -621,11 +635,13 @@ do_get_status() {
   else
     WAITSUPPORT="Disabled"
   fi
-
-  IMAGECOUNT=$(find ~/images.incoming/. -type f -name '*.jpg' | wc -l)
-  DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
+  BASELOCATION=$(grep -o '.*base_location = "[~/a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py | grep -v '#' | grep -o '"[~/a-z0-9A-Z._-]*"' | grep -o '[~/a-z0-9AZ._-]*')
+  
+  IMAGECOUNT=$(find $BASELOCATION/images.incoming/. -type f -name '*.jpg' | wc -l)
+  DAYCOUNT=$(ls -1 $BASELOCATION/images.incoming | wc -l)
   FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
-
+  FREEDISKHDD=$(df -h | grep "/dev/sda1" | sed 's/\/dev\/sda1 *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \/mnt\/ngdata//1')
+  
   STATUSTEXT="$(date)
 Name: $HOSTNAME
 OS: $OS_VERSION
@@ -635,7 +651,7 @@ Connection
  Camera  : $CAMERACONNECTION   Wi-Fi    : $WIFICONNECTION
  Internet: $INTERNETCONNECTION   Dreamhost: $DREAMHOSTCONNECTION
 Pending Upload: $DAYCOUNT Day(s) & $IMAGECOUNT Images
-Free Disk: $FREEDISK
+Free Disk: $FREEDISK  $FREEDISKHDD
 Background Job is $CRONJOB
 Waiting for Support is $WAITSUPPORT"
 
@@ -671,9 +687,11 @@ do_ping_dreamhost() {
 
 do_count_incoming() {
 
- IMAGECOUNT=$(find ~/images.incoming/. -type f -name '*.jpg' | wc -l)
- DAYCOUNT=$(ls -1 ~/images.incoming | wc -l)
- whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
+  BASELOCATION=$(grep -o '.*base_location = "[~/a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py | grep -v '#' | grep -o '"[~/a-z0-9A-Z._-]*"' | grep -o '[~/a-z0-9AZ._-]*')
+  
+  IMAGECOUNT=$(find $BASELOCATION/images.incoming/. -type f -name '*.jpg' | wc -l)
+  DAYCOUNT=$(ls -1 $BASELOCATION/images.incoming | wc -l)
+  whiptail --title "Outgoing queue status" --msgbox "Days queued: $DAYCOUNT\nImages queued: $IMAGECOUNT" 17 48
 
 }
 
@@ -942,7 +960,7 @@ do_setup_menu_wifi() {
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
       1\ *) do_menu_on_login ;;
-      2\ *) do_set_hostname_gpu_mem_ssh ;;
+      2\ *) do_set_hostname_gpu_mem_ssh_swap ;;
       3\ *) do_update_piguard_linux ;;
       4\ *) do_set_font_for_pitft ;;
       5\ *) do_install_pitft ;;
@@ -982,7 +1000,7 @@ do_setup_menu_lan() {
   elif [ $RET -eq 0 ]; then
     case "$SELECTION" in
       1\ *) do_menu_on_login ;;
-      2\ *) do_set_hostname_gpu_mem_ssh ;;
+      2\ *) do_set_hostname_gpu_mem_ssh_swap ;;
       3\ *) do_update_piguard_linux ;;
       4\ *) do_set_font_for_pitft ;;
       5\ *) do_install_pitft ;;
