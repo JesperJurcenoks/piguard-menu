@@ -2,9 +2,9 @@
 
 ##################################################################
 # Title:     piguard_menu
-# Copyright (C) 2014 Neighborhood Guard, Inc. All rights reserved
+# Copyright (C) 2014-2016 Neighborhood Guard, Inc. All rights reserved
 # Author:    Jesper Jurcenoks, Neighborhood Guard
-# Version:   1.11
+# Version:   1.12
 #
 # piguard_menu is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Affero General Public
@@ -140,6 +140,10 @@ do_set_hostname_gpu_mem_ssh_swap() {
   sudo apt-get remove wolfram-engine --assume-yes
   echo "done removing the wolfram-engine"
 
+  echo "enable ping to be executed without sudo..."
+  sudo chmod u+s /bin/ping
+  echo "done fixing ping"
+  
   if [ $FORCEREBOOT = 1 ]; then
     sudo reboot
   fi
@@ -279,6 +283,8 @@ do_install_ftp() {
 
   sudo apt-get update
 
+  sudo apt-get -f install --assume-yes
+  
   sudo apt-get install vsftpd --assume-yes
 
   sudo sed -i "s/anonymous_enable=YES/anonymous_enable=NO/g" /etc/vsftpd.conf
@@ -392,14 +398,14 @@ do_install_pitft() {
 
 do_upside_down() {
 
-  if grep -Fq "rotate=90" /etc/modprobe.d/adafruit.conf
+  if grep -Fq "rotate=90" /boot/config.txt
   then
     echo "current roation=90 setting to 270"
-    sudo sed -i "s/rotate=[0-9]* /rotate=270 /g" /etc/modprobe.d/adafruit.conf
+    sudo sed -i "s/rotate=[0-9]* /rotate=270 /g" /boot/config.txt
     sudo reboot
   else
     echo "current rotation-270 setting to 90"
-    sudo sed -i "s/rotate=[0-9]* /rotate=90 /g" /etc/modprobe.d/adafruit.conf
+    sudo sed -i "s/rotate=[0-9]* /rotate=90 /g" /boot/config.txt
     sudo reboot
   fi
 }
@@ -583,12 +589,14 @@ do_free_disk() {
 
 do_about() {
   whiptail --msgbox "\
-PiGuard is an open source project by Neighborhood Guard - an Oakland, CA Based non-profit
+PiGuard is an open source project by Neighborhood Guard - an Oakland, CA based non-profit
 piguard-menu is written by Jesper Jurcenoks
-Copyright 2014 Neighborhood Guard
+Copyright 2014-2016 Neighborhood Guard
 Released under GNU Affero 3.0
 
 www.neighborhoodguard.org
+
+Version: $VERSION
  \
 " 17 44 1
 }
