@@ -26,7 +26,7 @@
 WT_HEIGHT=18
 WT_WIDTH=46
 WT_MENU_HEIGHT=12
-VERSION="1.11"
+VERSION="1.12"
 
 
 set_config_var() {
