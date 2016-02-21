@@ -346,6 +346,8 @@ do_menu_on_login() {
     echo "enabling auto login"
     sudo sed -i "s/1:2345:respawn:\/sbin\/getty --noclear 38400 tty1/#1:2345:respawn:\/sbin\/getty --noclear 38400 tty1\n1:2345:respawn:\/bin\/login -f pi tty1 <\/dev\/tty1 >\/dev\/tty1 2>\&1/1" /etc/inittab
   fi
+
+  whiptail --title "Set autologin and menu" --msgbox "Raspberry Pi set to automatically Login and start with this menu" 17 48  
 }
 
 
@@ -622,7 +624,7 @@ do_get_status() {
     CAMERACONNECTION="Bad "
   fi
 
-  GATEWAY_ADDR=$(route -n | grep "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
+  GATEWAY_ADDR=$(route -n | grep -m 1 "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
   PINGRESULT=$(ping -c 1 -W 1 $GATEWAY_ADDR 2>&1)
   if [ $? = 0 ]; then
     WIFICONNECTION="Good"
@@ -695,7 +697,7 @@ do_ping_google() {
 
 do_ping_gateway() {
 
-  GATEWAY_ADDR=$(route -n | grep "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
+  GATEWAY_ADDR=$(route -n | grep -m 1 "^0.0.0.0" | awk '/0.0.0.0/ {print $2;}')
   PINGRESULT=$(ping -c 4 -W 1 $GATEWAY_ADDR 2>&1)
   whiptail --title "Ping Gateway Result" --msgbox "$PINGRESULT" 17 48
 }
@@ -927,7 +929,10 @@ do_support_menu() {
   fi
 }
 
+do_setup_hdd_menu() {
+  whiptail --msgbox "Please make sure the External Hard drive is plugged in before proceding" 20 60 1
 
+}
 
 do_maintenance_menu() {
 
@@ -965,7 +970,7 @@ do_setup_menu_wifi() {
     "3 Update linux & libraries" "" \
     "4 Set font for PiTFT mini display" "" \
     "5 Install PiTFT mini display drivers" ""\
-    "6 Optional:  Flip Mini display & reboot" ""\
+    "6 OPTIONAL: Flip Mini display & reboot" ""\
     "7 Set Locale" "" \
     "8 Set Time Zone and timesync" "" \
     "9 Install and start ftp-server" "" \
@@ -974,6 +979,7 @@ do_setup_menu_wifi() {
     "C Install firewall" ""\
     "D Set Cable to Cam and wifi to upload" "" \
     "E Install piguard_check" ""\
+    "F OPTIONAL: Setup Piguard to use HDD" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -994,6 +1000,7 @@ do_setup_menu_wifi() {
       C\ *) do_install_iptables ;;
       D\ *) do_setup_wifi ;;
       E\ *) do_install_piguard_check ;;
+      F\ *) do_setup_hdd_menu ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   fi
