@@ -133,11 +133,11 @@ do_set_hostname_gpu_mem_ssh_swap() {
   echo "stop using swapfile until next boot"
   sudo swapoff --all
   echo "disable swapfile permanently - remove swapfile functionality"
-  sudo apt-get remove dphys-swapfile --assume-yes
+  sudo apt-get remove dphys-swapfile --assume-yes --force-yes
   echo "done removing swapfile functionality"
   echo 
   echo "remove unneeded wolfram-engine"
-  sudo apt-get remove wolfram-engine --assume-yes
+  sudo apt-get remove wolfram-engine --assume-yes --force-yes
   echo "done removing the wolfram-engine"
 
   echo "enable ping to be executed without sudo..."
@@ -283,9 +283,9 @@ do_install_ftp() {
 
   sudo apt-get update
 
-  sudo apt-get -f install --assume-yes
+  sudo apt-get -f install --assume-yes --force-yes
   
-  sudo apt-get install vsftpd --assume-yes
+  sudo apt-get install vsftpd --assume-yes --force-yes
 
   sudo sed -i "s/anonymous_enable=YES/anonymous_enable=NO/g" /etc/vsftpd.conf
   sudo sed -i "s/#local_enable=YES/local_enable=YES/g" /etc/vsftpd.conf
@@ -324,8 +324,8 @@ do_edit_ftp_upload_py(){
 do_install_ftp_upload() {
 
   sudo apt-get update
-  sudo apt-get install python-pip --assume-yes
-  sudo apt-get install python-dev --assume-yes
+  sudo apt-get install python-pip --assume-yes --force-yes
+  sudo apt-get install python-dev --assume-yes --force-yes
   sudo pip install pysftp
   mkdir /home/pi/ftp_upload
   wget https://raw.githubusercontent.com/JesperJurcenoks/ftp_upload/master/FTP_Upload/src/localsettings.py -O /home/pi/ftp_upload/localsettings.py
@@ -581,11 +581,10 @@ do_install_iptables() {
 }
 
 do_free_disk() {
-  FREEDISK=$(df -h /)
-  FREEDISKHDD=$(df -h /mnt/ngdata)
+  FREEDISK=$(df -h / /tmp /var /mnt/ngdata)
   
-  whiptail --title "Free Disk Space" --msgbox "$FREEDISK
-  $FREEDISKHDD" 12 44
+  whiptail --title "Free Disk Space" --msgbox "$FREEDISK" 18 44
+
 }
 
 
@@ -665,7 +664,7 @@ do_get_status() {
   IMAGECOUNT=$(find $BASELOCATION/images.incoming/. -type f -name '*.jpg' | wc -l)
   DAYCOUNT=$(ls -1 $BASELOCATION/images.incoming | wc -l)
   FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
-  FREEDISKHDD=$(df -h | grep "/dev/sda1" | sed 's/\/dev\/sda1 *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \/mnt\/ngdata//1')
+  FREEDISKHDD=$(df -h | grep "/mnt/ngdata" | sed 's/\/dev\/sda3 *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \/mnt\/ngdata//1')
   
   STATUSTEXT="$(date)
 Name: $HOSTNAME
@@ -728,10 +727,16 @@ show_python_processes() {
 
 do_update_piguard_menu() {
 
-  sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu
-  sudo chmod +x /usr/local/bin/piguard-menu
+  if sudo wget https://raw.githubusercontent.com/JesperJurcenoks/piguard-menu/master/piguard-menu -O /usr/local/bin/piguard-menu.new; then
+    sudo unlink /usr/local/bin/piguard-menu.old
+    sudo mv /usr/local/bin/piguard-menu /usr/local/bin/piguard-menu.old
+    sudo mv /usr/local/bin/piguard-menu.new /usr/local/bin/piguard-menu
+    sudo chmod +x /usr/local/bin/piguard-menu
 
-  exec /usr/local/bin/piguard-menu
+    exec /usr/local/bin/piguard-menu
+  else
+    whiptail --msgbox "update failed - new file not available" 17 48
+  fi
 }
 
 do_update_piguard_linux() {
@@ -741,7 +746,7 @@ do_update_piguard_linux() {
   echo "- second synchronize the database on raspberry pi with available software"
   sudo apt-get update
   echo "- third download and upgrade newer packages"
-  sudo apt-get upgrade --assume-yes
+  sudo apt-get upgrade --assume-yes --force-yes
   echo "- fourth release space used to upgrade the system"
   sudo apt-get clean
 
@@ -838,6 +843,138 @@ do_chown_pi() {
 
 }
 
+do_list_harddrives() {
+
+  HDDLIST=$(sudo blkid | grep /dev/sda)
+  whiptail --title "Hard disk list" --msgbox "$HDDLIST" 17 48
+  
+}
+
+do_mount_hdd() {
+
+  sudo mount /dev/sda1 /tmp  
+#  sudo mount /dev/sda2 /var
+
+#  sudo mount /dev/sda3 /mnt/ngdata
+  sudo mount /dev/sda2 /mnt/ngdata
+  sudo chown -R pi:pi /mnt/ngdata  
+ 
+}
+
+do_format_hdd_setup_dirs() {
+ 
+  # Unmount everything on the HDD
+  
+  for n in /dev/sda* ; do sudo umount -l $n ; done
+
+  # Script to automatically recreate all partitions on /dev/sda
+
+  # Remove each partition
+  for v_partition in $(sudo parted -s /dev/sda print|awk '/^ / {print $1}')
+  do
+     sudo parted -s /dev/sda rm ${v_partition}
+  done
+  
+  # make new partitions
+  
+  sudo parted -s /dev/sda mkpart primary 0 2047  #tmp
+#  sudo parted -s /dev/sda mkpart primary 2048 4095  #var
+  
+  # Find size of disk
+  v_disk=$(sudo parted -s /dev/sda print|awk '/^Disk/ {print $3}'|sed 's/[Mm][Bb]//')
+
+  # Create NGDATA partition for remaining space
+#  sudo parted -s /dev/sda mkpart primary 4096 ${v_disk}  #ngdata
+  sudo parted -s /dev/sda mkpart primary 2048 ${v_disk}  #ngdata
+  
+  #format all 3 partitions with ext4
+  sudo mkfs.ext4 /dev/sda1 -F -L TMP
+#  sudo mkfs.ext4 /dev/sda2 -F -L VAR
+  sudo mkfs.ext4 /dev/sda2 -F -L NGDATA
+  
+  sudo mkdir /mnt/ngdata
+  sudo chown -R pi:pi /mnt/ngdata
+  
+#  sudo mkdir /mnt/var        
+#  sudo mount /dev/sda1 /mnt/var
+ 
+#  sudo cp -ax /var/* /mnt/var
+ 
+#  sudo mv /var /var.old
+  
+#  sudo mkdir /var
+  
+#  sudo umount /dev/sda1  
+  
+  do_mount_hdd
+  
+#  sudo cp -ax /var.old/* /var
+
+  
+  mkdir /mnt/ngdata/images.incoming
+  mkdir /mnt/ngdata/images.uploaded
+  mkdir /mnt/ngdata/ftp_upload
+ 
+  # check if /dev/sda1 has already been added to fstab
+  if !(sudo cat /etc/fstab | grep /dev/sda1); then   
+    sudo sh -c "echo \"/dev/sda1       /tmp     ext4    defaults,         0       2\" >> /etc/fstab"    
+#    sudo sh -c "echo \"/dev/sda2       /tmp     ext4    defaults,         0       2\" >> /etc/fstab"    
+#    sudo sh -c "echo \"/dev/sda3       /mnt/ngdata     ext4    defaults,         0       2\" >> /etc/fstab"    
+    sudo sh -c "echo \"/dev/sda2       /mnt/ngdata     ext4    defaults,         0       2\" >> /etc/fstab"    
+  fi
+  
+  sudo reboot
+}
+
+
+do_list_hdd_contents() {
+
+  HDDCONTENTS=$(ls -l /mnt/ngdata)
+  whiptail --title "Hard disk Contents" --msgbox "$HDDCONTENTS" 17 48
+  
+}
+
+do_set_ftp_upload_hdd() {
+
+  if !(grep '#base_location = "/home/pi/"  # Default for Images on SD Card' /home/pi/ftp_upload/localsettings.py); then
+    echo "uncommenting hdd line"
+    sudo sed -i 's%#base_location = "/mnt/ngdata/"%base_location = "/mnt/ngdata/"%g' /home/pi/ftp_upload/localsettings.py
+    sudo sed -i 's%base_location = "/home/pi/"%#base_location = "/home/pi/"%g' /home/pi/ftp_upload/localsettings.py
+  
+  fi
+}
+
+do_set_ftp_upload_sdcard() {
+
+  if !(grep '#base_location = "/mnt/ngdata/" # Default for Images on Harddisk' /home/pi/ftp_upload/localsettings.py); then
+    echo "uncommenting SDcard line"
+    sudo sed -i 's%#base_location = "/home/pi/"%base_location = "/home/pi/"%g' /home/pi/ftp_upload/localsettings.py
+    sudo sed -i 's%base_location = "/mnt/ngdata/"%#base_location = "/mnt/ngdata/"%g' /home/pi/ftp_upload/localsettings.py
+  
+  fi
+}
+
+
+do_install_watchdog_timer() {
+
+  if !(sudo grep "bcm2708_wdog" /etc/modules); then
+    sudo sh -c "echo \"bcm2708_wdog\" >> /etc/modules"
+  fi
+  
+  sudo apt-get install watchdog chkconfig --assume-yes --force-yes
+  sudo chkconfig watchdog on
+
+  sudo sed -i 's%#watchdog-device%watchdog-device%g' /etc/watchdog.conf
+  sudo sed -i 's%#max-load-1%max-load-1%g' /etc/watchdog.conf
+  sudo sed -i 's%max-load-15%#max-load-15%g' /etc/watchdog.conf
+  
+  if !(sudo grep "watchdog-timeout = 15" /etc/watchdog.conf); then
+    sudo sh -c "echo \"watchdog-timeout = 15\" >> /etc/watchdog.conf"
+  fi
+  
+  sudo service watchdog start
+  
+}
 
 
 do_diag_menu() {
@@ -881,7 +1018,11 @@ do_diag_menu() {
       F\ *) kill_python_processes;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+    
+    do_diag_menu
+    
   fi
+  
 
 }
 
@@ -907,7 +1048,11 @@ do_advanced_settings() {
       6\ *) do_chown_pi ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+    
+    do_advanced_menu
+    
   fi
+  
 }
 
 do_support_menu() {
@@ -926,12 +1071,47 @@ do_support_menu() {
       3\ *) do_install_remote_support ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+    
+    do_support_menu
+    
   fi
+  
 }
 
 do_setup_hdd_menu() {
-  whiptail --msgbox "Please make sure the External Hard drive is plugged in before proceding" 20 60 1
+  if ! (sudo blkid | grep /dev/sda); then
+    whiptail --msgbox "Please make sure the External Hard drive is plugged in before proceding" 20 60 1
+  fi
+    
+    SELECTION=$(whiptail --title "HDD Setup Menu on $HOSTNAME" --menu "HDD Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
+    "1 List harddrives" "" \
+    "2 Format HDD sda1, setup dirs & reboot" "" \
+    "3 list hdd contents" "" \
+    "4 mount hdd into /mnt/ngdata" "" \
+    "5 set ftp_upload base_location to hdd" "" \
+    "6 set ftp_upload base_location to SD-card" "" \
+    "7 kill ftp_upload (will restart on timeR)" "" \
+    3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+    do_finish
+  elif [ $RET -eq 0 ]; then
+    case "$SELECTION" in
+      1\ *) do_list_harddrives ;;
+      2\ *) do_format_hdd_setup_dirs ;;
+      3\ *) do_list_hdd_contents ;;
+      4\ *) do_mount_hdd ;;
+      5\ *) do_set_ftp_upload_hdd ;;
+      6\ *) do_set_ftp_upload_sdcard ;;
+      7\ *) kill_python_processes ;;
+      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
+    esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
 
+    do_setup_hdd_menu
+
+  fi
+
+  
 }
 
 do_maintenance_menu() {
@@ -959,6 +1139,9 @@ do_maintenance_menu() {
       7\ *) do_set_camera_ip ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+
+    do_maintenance_menu    
+    
   fi
 
 }
@@ -977,9 +1160,9 @@ do_setup_menu_wifi() {
     "A install NG ftp_upload" "" \
     "B Install DHCP Server" ""\
     "C Install firewall" ""\
-    "D Set Cable to Cam and wifi to upload" "" \
-    "E Install piguard_check" ""\
-    "F OPTIONAL: Setup Piguard to use HDD" ""\
+    "D Install Watchdog timer" ""\
+    "E Set Cable to Cam and wifi to upload" "" \
+    "F Install piguard_check" ""\
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -998,11 +1181,14 @@ do_setup_menu_wifi() {
       A\ *) do_install_ftp_upload ;;
       B\ *) do_install_dhcp ;;
       C\ *) do_install_iptables ;;
-      D\ *) do_setup_wifi ;;
-      E\ *) do_install_piguard_check ;;
-      F\ *) do_setup_hdd_menu ;;
+      D\ *) do_install_watchdog_timer ;;
+      E\ *) do_setup_wifi ;;
+      F\ *) do_install_piguard_check ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
+
+    do_setup_menu_wifi
+
   fi
 
 }
@@ -1021,10 +1207,11 @@ while true; do
     "4 Maintenance menu" "" \
     "5 Support Menu" "" \
     "6 Setup Menu (WiFi Edition)" "" \
-    "7 Advanced settings" "" \
-    "8 Restart (Reboot) PiGuard" "" \
-    "9 Shutdown PiGuard safely" "" \
-    "A About PiGuard-Menu" "" \
+    "7 OPTIONAL: Setup Piguard to use HDD" ""\
+    "8 Advanced settings" "" \
+    "9 Restart (Reboot) PiGuard" "" \
+    "A Shutdown PiGuard safely" "" \
+    "B About PiGuard-Menu" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -1037,10 +1224,11 @@ while true; do
       4\ *) do_maintenance_menu ;;
       5\ *) do_support_menu ;;
       6\ *) do_setup_menu_wifi ;;
-      7\ *) do_advanced_settings ;;
-      8\ *) do_reboot ;;
-      9\ *) do_shutdown;;
-      A\ *) do_about ;;
+      7\ *) do_setup_hdd_menu ;;      
+      8\ *) do_advanced_settings ;;
+      9\ *) do_reboot ;;
+      A\ *) do_shutdown;;
+      B\ *) do_about ;;
       *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
     esac || whiptail --msgbox "There was an error running option $SELECTION" 20 60 1
   else
