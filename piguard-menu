@@ -522,7 +522,8 @@ do_display_timesync_cronlog() {
 
 do_display_ftp_upload.log() {
   clear
-  tail -n 30 ~/ftp_upload/ftp_upload.log
+  BASELOCATION=$(grep -o '.*base_location = "[~/a-z0-9A-Z._-]*"' ~/ftp_upload/localsettings.py | grep -v '#' | grep -o '"[~/a-z0-9A-Z._-]*"' | grep -o '[~/a-z0-9AZ._-]*')
+  tail -n 30 $BASELOCATION/ftp_upload/ftp_upload.log
   echo "press any key to continue"
   read -s -n 1
 }
@@ -664,7 +665,7 @@ do_get_status() {
   IMAGECOUNT=$(find $BASELOCATION/images.incoming/. -type f -name '*.jpg' | wc -l)
   DAYCOUNT=$(ls -1 $BASELOCATION/images.incoming | wc -l)
   FREEDISK=$(df -h / | grep "/dev/root" | sed 's/\/dev\/root *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \///1')
-  FREEDISKHDD=$(df -h | grep "/mnt/ngdata" | sed 's/\/dev\/sda3 *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \/mnt\/ngdata//1')
+  FREEDISKHDD=$(df -h | grep "/mnt/ngdata" | sed 's/\/dev\/sda2 *[0-9.]*[GMK] *[0-9.]*[GMK] *//1' | sed 's/ *[0-9]*% \/mnt\/ngdata//1')
   
   STATUSTEXT="$(date)
 Name: $HOSTNAME
@@ -1090,7 +1091,7 @@ do_setup_hdd_menu() {
     "4 mount hdd into /mnt/ngdata" "" \
     "5 set ftp_upload base_location to hdd" "" \
     "6 set ftp_upload base_location to SD-card" "" \
-    "7 kill ftp_upload (will restart on timeR)" "" \
+    "7 kill ftp_upload (will restart on timer)" "" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
